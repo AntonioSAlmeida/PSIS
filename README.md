@@ -2,7 +2,7 @@
 António Almeida N°78494
 João Alves N°78181
 
-Systems Programming Project
+Systems Programming Course Project
 
 Shared clipboard 
 
