@@ -1,34 +1,35 @@
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/types.h> 
 #include <unistd.h>
-#include <fcntl.h>
+#include <sys/socket.h>
+
 
 #include "clipboard.h"
 
+
 int main(){
 
-	int fd = clipboard_connect("./");
+	struct sockaddr_un server_addr;
+	struct sockaddr_un client_addr;
+	char buff[100];
+	int nbytes;
+	int sock_fd=0;
+	
+	printf(" socket created \n");
+	client_addr.sun_family = AF_UNIX;
+	printf(" socket with adress \n");
+	server_addr.sun_family = AF_UNIX;
+	strcpy(server_addr.sun_path, SOCK_ADDRESS);
 
-	if(fd== -1){
-		exit(-1);
-	}
+	sock_fd=clipboard_connect(server_addr);
 
-	char dados[10];
-	int dados_int;
-	fgets(dados, 10, stdin);
+	clipboard_copy(sock_fd, 3, "penis\n", (strlen("penis\n")+1)*sizeof(char));
 
-	if(clipboard_copy(fd, 0, dados, sizeof(dados)) <0){
-		exit(-1);
-	}
+	
 
-	printf("still raidin\n");
-
-	if(read(fd+1, &dados_int, sizeof(dados_int))<0){
-			exit(-1);
-	}
-	printf("Received %d\n", dados_int);
-
+	close(sock_fd);
 	exit(0);
 }

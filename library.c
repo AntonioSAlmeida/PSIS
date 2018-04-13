@@ -1,69 +1,48 @@
-/* This is actuall API.c */
-
-
-#include "clipboard.h"
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+#include <sys/types.h> 
 #include <unistd.h>
+#include "clipboard.h"
 
-#define COPY "copy request"
-#define PASTE "paste request"
+#define COPY 0
+#define PASTE 1
 
-typedef struct Message{
-	char *order;
-	int region;
-	void *data;
 
-} message;
+int clipboard_connect(struct sockaddr_un server_addr){
 
-/*fifo_send and fifo_recv are the file descriptors for the fifos to send and receive*/
-
-int clipboard_connect(char *clipboard_dir){
-	char fifo_name[100];
-
-	if(sprintf(fifo_name, "%s%s", clipboard_dir, INBOUND_FIFO) < 0){
-		printf("sprintf1 error");
-		return -1;
-	}
-
-	int fifo_send = open(fifo_name, O_WRONLY);
-	if(sprintf(fifo_name, "%s%s", clipboard_dir, OUTBOUND_FIFO) < 0){
-		printf("sprintf2 error");
+	int sock_fd= socket(AF_UNIX, SOCK_STREAM, 0);
+	if (sock_fd == -1){
+		perror("socket: ");
 		exit(-1);
 	}
-	int fifo_recv = open(fifo_name, O_RDONLY);
-
-	if(fifo_send < 0 || fifo_recv <0){
-		printf("%d | %d", fifo_send, fifo_recv);
+	
+	if( -1 == connect(sock_fd, (const struct sockaddr *) &server_addr, sizeof(server_addr))){
+		printf("Error connecting\n");
 		exit(-1);
 	}
 
-	return fifo_send;
-	//rcv is send+1
+	return sock_fd;
 }
 
-/* clipboard_id - file descriptor of the fifo to write
-	 *buf 				- message to send
-	 count 				- size of the sent message*/
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
 
-	struct Message msg_struct;
+	message msg_struct;
+	
 	msg_struct.order = COPY;
 	msg_struct.region = region;
-	msg_struct.data = buf;
-	char *msg = malloc(sizeof(message));
+	msg_struct.data_size = sizeof(char)*(strlen(buf)+1);
 
-	memcpy(msg, &msg_struct, sizeof(msg_struct));
+	//char *msg = malloc(sizeof(message));
 
-	if(write(clipboard_id, &msg, count)<0){
-		exit(-1);
-	}
+	//memcpy(msg, &msg_struct, sizeof(msg_struct));
 
-	free(msg);
+	send(clipboard_id, &msg_struct, sizeof(msg_struct), 0);
+
+	send(clipboard_id, buf, msg_struct.data_size, 0);
+	
+	
 	return 0;
 }
 
@@ -72,19 +51,15 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 	message msg_struct;
 	msg_struct.order = PASTE;
 	msg_struct.region = region;
-	msg_struct.data;
+	msg_struct.data_size=0;
 	char *msg = malloc(sizeof(message));
 
 	memcpy(msg, &msg_struct, sizeof(message));
 
-	if(write(clipboard_id, &msg, count)<0){
-		exit(-1);
-	}
+	send(clipboard_id, msg, sizeof(msg), 0);
 
-	if(read(clipboard_id+1, &buf, sizeof(message))<0){
-		exit(-1);
-	}
-
+	recv(clipboard_id+1, &buf, 100, 0);
+	
 	free(msg);
 	return 0;
 }

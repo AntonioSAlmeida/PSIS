@@ -1,54 +1,75 @@
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-
+#include <sys/types.h> 
+#include <unistd.h>
+#include <sys/socket.h>
 #include "clipboard.h"
 
 
 int main(){
-	char file_name[100];
+	struct sockaddr_un server_addr;
+	struct sockaddr_un client_addr;
+	
+	socklen_t size_addr;
 
-	sprintf(file_name, "./%s", OUTBOUND_FIFO);
-	unlink(file_name);
-	if(mkfifo(file_name, 0666)==-1){
-		printf("Error creating out fifo\n");
+	char buff[100];
+	int nbytes;
+	
+	//Socket
+	int sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (sock_fd == -1){
+		perror("socket: ");
 		exit(-1);
 	}
-	int fifo_out = open(file_name, O_RDWR);
-	if(fifo_out == -1){
-		printf("Error opening in fifo\n");
+	
+	//Fill server_addr
+	server_addr.sun_family = AF_UNIX;
+	strcpy(server_addr.sun_path, SOCK_ADDRESS);
+
+	//bind
+	int err = bind(sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+	if(err == -1) {
+		perror("bind");
 		exit(-1);
 	}
 
-	sprintf(file_name, "./%s", INBOUND_FIFO);
-	unlink(file_name);
-	if(mkfifo(file_name, 0666)==-1){
-		printf("Error creating in fifo\n");
-		exit(-1);
-	}
-	int fifo_in = open(file_name, O_RDWR);
-	if(fifo_in == -1){
-		printf("Error opening in fifo\n");
-		exit(-1);
-	}
+	printf(" socket created and binded \n");
 
-	//criar FIFOS
+	//listen
+	listen(sock_fd, 5);
+	
+	printf("Ready to accept connections\n");
 
-	//abrir FIFOS
-	char data[10];
-	int len_data;
-	while(1){
-		printf(".\n");
-		read(fifo_in, data, 10);
-		printf("received %s\n", data);
-		len_data = strlen(data);
-		printf("sending value %d - legth %d\n", len_data, sizeof(len_data));
-		write(fifo_out, &len_data, sizeof(len_data));
-	}
+
+	//ciclo
+	//accept
+
+	int client_fd= accept(sock_fd, (struct sockaddr *) & client_addr, &size_addr);
+
+	printf("Accepted one connection from %s \n", (char*)client_addr.sun_path);
+
+	message * message_received=NULL;
+	message_received=malloc(sizeof(message));
+	
+	message * message_size=NULL;
+
+	
+
+	nbytes = recv(client_fd, buff, sizeof(message), 0);
+
+	memcpy(message_size, buff, sizeof(message));
+
+	nbytes = recv(client_fd, buff, message_size->data_size, 0);
+
+
+	printf("received %d bytes --- %s ---\n", nbytes, buff);
+
+	free(message_received);
+
+	close(sock_fd);
+	close(client_fd);
 
 	exit(0);
 
