@@ -7,7 +7,6 @@ Systems Programming Course Project
 Shared clipboard 
 
 Compile: 
-gcc -c API.c -o API.o
-gcc app_teste.c API.o -o app_test
-gcc clipboard.c API.o -o clipboard
-gcc remote_backup.c API.o -o remote
+gcc -c library.c -o library.o
+gcc -pthread clipboard.c library.o -o clipboard
+gcc app_teste.c library.o -o app_teste
