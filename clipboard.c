@@ -15,7 +15,7 @@ char **clipboard_content;
 void * clipboard_thread_connection(void * fdi){
 		int * fd = fdi;
 		int client_fd=*fd;
-		char buff[100];
+		char * buff=malloc(sizeof(char)*1000);
 		int nbytes=1;
 		int count=0;
 		message *message_size=malloc(sizeof(message));
@@ -30,17 +30,15 @@ void * clipboard_thread_connection(void * fdi){
 			//Build struct
 			memcpy(message_size, buff, sizeof(message));
 
-			printf("%d\n", message_size->data_size);
-
 			count=message_size->data_size;
 			while(count>0){
 				nbytes = recv(client_fd, buff, message_size->data_size, 0);
 				count-=nbytes;	
 			}
+
+			printf("size:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buff);
 			
-			// DELETE - print to check variables
-			printf("%s", buff);
-			//Escrever no array dinamico
+			//Write in dynamic array
 			clipboard_content[message_size->region] = malloc(message_size->data_size*sizeof(char));
 			memcpy(clipboard_content[message_size->region], buff, message_size->data_size);
 		}

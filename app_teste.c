@@ -33,19 +33,15 @@ int main(){
 	//	printf("%s\n", "Enter your message");
 	//}
 
-	char * m=malloc(1000000*sizeof(char));
-	int i=0;
-	for(i =0; i<1000000; i++){
-		m[i]='a';
-	}
-	m[i-1]='\0';
-	printf("message created\n");
-	//strcpy(m, "Message in a bottle \n");
-	
+	char * m=malloc(1000*sizeof(char));
+
+	strcpy(m, "Message in a bottle\n");
+
+
 	while(1){
-		
 		//Send to clipboard something
 		clipboard_copy(sock_fd, 3, m, (strlen(m)+1)*sizeof(char));	
+		sleep(3);
 	}
 	
 
