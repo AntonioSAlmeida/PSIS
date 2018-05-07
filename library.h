@@ -5,6 +5,11 @@
 #define CLIPBOARD_SOCKET "./sock_16"
 #define REMOTE_PORT 1337
 
+
+#define COPY 0
+#define PASTE 1
+
+
 typedef struct Message{
 	int order;
 	int region;

@@ -15,7 +15,8 @@ char **clipboard_content;
 void * clipboard_thread_connection(void * fdi){
 		int * fd = fdi;
 		int client_fd=*fd;
-		char * buff=malloc(sizeof(char)*1000);
+		char * buffstruct=malloc(sizeof(message));
+		
 		int nbytes=1;
 		int count=0;
 		message *message_size=malloc(sizeof(message));
@@ -23,25 +24,66 @@ void * clipboard_thread_connection(void * fdi){
 
 		// Receive messages - 1st) size of message; 2nd) message to copy to clipboard
 		while(1){
-			nbytes = recv(client_fd, buff, sizeof(message), 0);
+			nbytes = recv(client_fd, buffstruct, sizeof(message), 0);
 			if(nbytes==0){
 				break;
 			}
 			//Build struct
-			memcpy(message_size, buff, sizeof(message));
+			memcpy(message_size, buffstruct, sizeof(message));
 
-			count=message_size->data_size;
-			while(count>0){
-				nbytes = recv(client_fd, buff, message_size->data_size, 0);
-				count-=nbytes;	
+			if(message_size->order==COPY){
+
+				count=message_size->data_size;
+				
+				char * buffdata=malloc(sizeof(message_size->data_size));
+
+				while(count>0){
+					nbytes = recv(client_fd, buffdata, message_size->data_size, 0);
+					count-=nbytes;	
+				}
+
+				printf("size:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
+
+				printf("%lu\n", pthread_self());
+
+				//Write in dynamic array
+				clipboard_content[message_size->region] = malloc(message_size->data_size*sizeof(char));
+
+				memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
+
+				free(buffdata);
+			
+			}else if(message_size->order==PASTE){
+
+				message_size->data_size=sizeof(char)*(strlen(clipboard_content[message_size->region])+1);
+				
+				printf("%s\n",clipboard_content[message_size->region]);
+				
+				//Sending message length
+				
+				
+
+				memcpy(buffstruct, message_size, sizeof(message));
+
+				send(client_fd, buffstruct, sizeof(message), 0);
+
+
+				//Sending message
+
+				char * buffdata=malloc(sizeof(message_size->data_size));
+
+				memcpy(buffdata, clipboard_content[message_size->region], message_size->data_size);	
+				
+				send(client_fd, buffdata, message_size->data_size, 0);			
+
+				free(buffdata);
+			
+				
 			}
 
-			printf("size:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buff);
-			
-			//Write in dynamic array
-			clipboard_content[message_size->region] = malloc(message_size->data_size*sizeof(char));
-			memcpy(clipboard_content[message_size->region], buff, message_size->data_size);
 		}
+		free(buffstruct);
+		free(message_size);
 		printf("leaving\n");
 }
 
@@ -131,9 +173,10 @@ int main(int argc, char *argv[]){
 			clipboard_copy(remote_fd, 3, "I send an SOS to the world\n", (strlen("I send an SOS to the world\n")+1)*sizeof(char));
 		}*/
 		printf("Thread creation successful\n");
+	}
 
-		// TO DO - Create local clipboard
-		// TO DO - Copy message to local clipboard
+	for(i=0; i<10; i++){
+		free(clipboard_content[i]);
 	}
 
 	close(sock_fd);

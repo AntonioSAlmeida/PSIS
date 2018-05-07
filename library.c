@@ -6,9 +6,6 @@
 #include <unistd.h>
 #include "library.h"
 
-#define COPY 0
-#define PASTE 1
-
 
 int clipboard_connect(struct sockaddr_un server_addr){
 
@@ -45,27 +42,53 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
 	while(aux_count>0){
 
 		sent=send(clipboard_id, buf, msg_struct.data_size, 0);
+		if(aux_count!=count){
+			printf("repeating send\n");	
+		}
+		
 		aux_count-=sent;
-		printf("repeating send\n");
+
 	}
 	
+	free(msg);
 	
 	return 0;
 }
 
-int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
+int clipboard_paste(int clipboard_id, int region, void *buff, size_t count){
 
+	
+	char * buffstruct=malloc(sizeof(message));
+	
 	message msg_struct;
 	msg_struct.order = PASTE;
 	msg_struct.region = region;
 	msg_struct.data_size=0;
+
 	char *msg = malloc(sizeof(message));
 
 	memcpy(msg, &msg_struct, sizeof(message));
 
+	
 	send(clipboard_id, msg, sizeof(msg), 0);
 
-	recv(clipboard_id+1, &buf, 100, 0);
+	//Receive message struct
+
+
+	recv(clipboard_id, buffstruct, sizeof(message), 0);
+
+	memcpy(&msg_struct, buffstruct, sizeof(message));	
+
+	//Receive messsage
+
+
+	buff=malloc(msg_struct.data_size);
+
+	recv(clipboard_id, buff, msg_struct.data_size, 0);
+
+	printf("%s\n", (char*)buff);
+
+	free(buffstruct);
 	
 	free(msg);
 	return 0;

@@ -13,9 +13,9 @@ int main(){
 
 	struct sockaddr_un server_addr;
 	struct sockaddr_un client_addr;
-	char buff[100];
 	int nbytes;
 	int sock_fd=0;
+
 
 	//Create and fill client address
 	printf(" socket created \n");
@@ -34,19 +34,23 @@ int main(){
 	//}
 
 	char * m=malloc(1000*sizeof(char));
+	char * buff;
 
 	strcpy(m, "Message in a bottle\n");
 
+	//Send to clipboard something
+	clipboard_copy(sock_fd, 3, m, (strlen(m)+1)*sizeof(char));
+
+	sleep(1);
 
 	while(1){
-		//Send to clipboard something
-		clipboard_copy(sock_fd, 3, m, (strlen(m)+1)*sizeof(char));	
-		sleep(3);
+		sleep(1);
+		clipboard_paste(sock_fd, 3, (char *)buff, 0);
 	}
-	
-
 
 
 	close(sock_fd);
+	free(m);
+	free(buff);
 	exit(0);
 }
