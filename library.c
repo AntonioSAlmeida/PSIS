@@ -2,7 +2,7 @@
 #include <sys/un.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <unistd.h>
 #include "library.h"
 
@@ -47,7 +47,7 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
 		return 0;
 	}
 
-	message msg_struct;	
+	message msg_struct;
 	msg_struct.order = COPY;
 	msg_struct.region = region;
 	msg_struct.data_size = count;
@@ -71,14 +71,16 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
 			return 0;
 		}
 		//if(aux_count!=count){
-		//	printf("repeating send\n");	
+		//	printf("repeating send\n");
 		//}
 
 		aux_count-=sent;
+		//printf("%d\n", aux_count);
 	}
-	
+
+	//printf("came out\n");
 	free(msg);
-	
+
 	return count;
 }
 
@@ -98,11 +100,12 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 		return 0;
 	}
 
-	char *bufstruct=malloc(sizeof(message));
 	message msg_struct;
 	msg_struct.order = PASTE;
 	msg_struct.region = region;
-	msg_struct.data_size=0;
+	msg_struct.data_size = 0;
+
+	char *bufstruct=malloc(sizeof(message));
 	int err_msg;
 	char *msg = malloc(sizeof(message));
 
@@ -123,16 +126,11 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 
 	memcpy(&msg_struct, bufstruct, sizeof(message));
 
-	//Receive messsage
-	buf = malloc(msg_struct.data_size);
-
 	err_msg = recv(clipboard_id, buf, msg_struct.data_size, 0);
 	if(err_msg == -1){
 		perror("clipboard: ");
 		return 0;
 	}
-
-	//printf("%s\n", (char*)buf);
 
 	free(bufstruct);
 	free(msg);
@@ -151,20 +149,21 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
  ********************************************************************************/
 int clipboard_wait(int clipboard_id, int region, void *buf, size_t count){
 
-	char *init_clip = (char*)malloc((sizeof(char)*count));
+	char *init_clip = (char*)malloc((sizeof(char)*count)+1);
 	char *current_clip = (char*)malloc((sizeof(char)*count));
 
 	int err = clipboard_paste(clipboard_id, region, init_clip, count);
+
 	if(err == -1){
 		perror("paste: ");
 		return 0;
 	}
 
-	current_clip = init_clip;
 
-	while(strcmp(init_clip, current_clip)==0){
+	while(strcmp(init_clip, current_clip) == 0){
 		sleep(2); //just to try and not consume too many resources by constantly making comparisons...
 		int err = clipboard_paste(clipboard_id, region, current_clip, count);
+		printf("%s | %s\n", init_clip, current_clip);
 		if(err == 0){
 			perror("paste: ");
 			return 0;
