@@ -17,6 +17,7 @@ int main(){
 	int sock_fd=0;
 
 
+
 	//Create and fill client address
 	printf(" socket created \n");
 	client_addr.sun_family = AF_UNIX;
@@ -34,7 +35,7 @@ int main(){
 	//}
 
 	char * m=malloc(1000*sizeof(char));
-	char * buff;
+	void * buff=malloc(1000*sizeof(char));
 
 	strcpy(m, "Message in a bottle\n");
 
@@ -42,12 +43,12 @@ int main(){
 	clipboard_copy(sock_fd, 3, m, (strlen(m)+1)*sizeof(char));
 
 	sleep(1);
+	buff = malloc(1000*sizeof(char));
+	clipboard_paste(sock_fd, 3, (char *)buff, 0);
 
-	while(1){
-		sleep(1);
-		clipboard_paste(sock_fd, 3, (char *)buff, 0);
-	}
-
+	printf("hasdsa%s\n", (char*)buff);
+	
+	while(1){}
 
 	close(sock_fd);
 	free(m);

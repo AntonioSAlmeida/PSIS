@@ -24,6 +24,7 @@ void * clipboard_thread_connection(void * fdi){
 
 		// Receive messages - 1st) size of message; 2nd) message to copy to clipboard
 		while(1){
+			printf("ola\n");
 			nbytes = recv(client_fd, buffstruct, sizeof(message), 0);
 			if(nbytes==0){
 				break;
@@ -61,8 +62,6 @@ void * clipboard_thread_connection(void * fdi){
 				
 				//Sending message length
 				
-				
-
 				memcpy(buffstruct, message_size, sizeof(message));
 
 				send(client_fd, buffstruct, sizeof(message), 0);
