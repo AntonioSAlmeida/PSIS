@@ -42,14 +42,13 @@ int main(){
 	//Send to clipboard something
 	clipboard_copy(sock_fd, 3, m, (strlen(m)+1)*sizeof(char));
 
-	// sleep(1);
-	// buff = malloc(1000*sizeof(char));
-	// clipboard_paste(sock_fd, 3, (char *)buff, 0);
+	sleep(1);
+	buff = malloc(1000*sizeof(char));
+	clipboard_paste(sock_fd, 3, (char *)buff, 0);
 
-	// printf("%s\n", (char*)buff);
+	printf("%s\n", (char*)buff);
 	
-	while(1){getchar();
-		clipboard_copy(sock_fd, 3, m, (strlen(m)+1)*sizeof(char));}
+	while(1){}
 
 	close(sock_fd);
 	free(m);
