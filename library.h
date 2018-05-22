@@ -18,9 +18,6 @@ typedef struct Message{
 	int data_size;
 } message;
 
-typedef struct Connection{
-	pthread_t id;
-} connection;
 
 int clipboard_connect(struct sockaddr_un socket_addr);
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count);

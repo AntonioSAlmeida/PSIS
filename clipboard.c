@@ -21,11 +21,9 @@ void * clipboard_thread_connection(void * fdi){
 		int nbytes=1;
 		int count=0;
 		message *message_size=malloc(sizeof(message));
-		printf("%lu\n", pthread_self());
-
+	
 		// Receive messages - 1st) size of message; 2nd) message to copy to clipboard
 		while(1){
-			printf("ola\n");
 			nbytes = recv(client_fd, buffstruct, sizeof(message), 0);
 			if(nbytes==0){
 				break;
@@ -45,8 +43,6 @@ void * clipboard_thread_connection(void * fdi){
 				}
 
 				printf("size:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
-
-				printf("%lu\n", pthread_self());
 
 				//Write in dynamic array
 				clipboard_content[message_size->region] = malloc(message_size->data_size*sizeof(char));
@@ -84,7 +80,6 @@ void * clipboard_thread_connection(void * fdi){
 		}
 		free(buffstruct);
 		free(message_size);
-		printf("leaving\n");
 }
 
 int main(int argc, char *argv[]){
@@ -92,7 +87,6 @@ int main(int argc, char *argv[]){
 	struct sockaddr_un client_addr;
 	socklen_t size_addr;
 		
-	printf("%lu\n", pthread_self());
 	
 	int sock_fd;
 	int remote_fd = -1;
@@ -100,7 +94,7 @@ int main(int argc, char *argv[]){
 	int* c_fd = malloc(sizeof(int));
 	clipboard_content = malloc(10*sizeof(char*));
 
-	LinkedList * threads = initLinkedList();
+	
 	
 
 	/*if(argc > 1){
@@ -156,30 +150,37 @@ int main(int argc, char *argv[]){
 	listen(sock_fd, 5);
 	printf("Ready to accept connections\n");
 
-	connection * node=malloc(sizeof(connection));
-	LinkedList * lastnext=NULL;
-	int i=0;
+	
+	LinkedList * head = NULL;
+	
+	pthread_t i;
 	while(1){
 		// Accept
 		client_fd = accept(sock_fd, (struct sockaddr *)&client_addr, &size_addr);
+		
 		printf("Accepted one connection from %s\n", CLIPBOARD_SOCKET);
-		node->id=i;
-		lastnext=getlastNext(threads);
-		insertUnsortedLinkedList(threads, lastnext);
 		//Call new thread
 		*c_fd=client_fd;
-		pthread_create(&(node->id), NULL, clipboard_thread_connection, c_fd);
-		i++;
+
+		pthread_create(&i, NULL, clipboard_thread_connection, c_fd);
+
+		if(head==NULL){
+			insertFirstLinkedList(&head, i);
+		}else{
+  			insertLinkedList(&head, i);
+		}
+
+		printf("tamanho lista: %d\n", lengthLinkedList(head));
 		
+		printLinkedList(head);
 		
 		/*if(remote_fd != -1){
 			clipboard_copy(remote_fd, 3, "I send an SOS to the world\n", (strlen("I send an SOS to the world\n")+1)*sizeof(char));
 		}*/
-		printf("Thread creation successful\n");
 	}
-
-	for(i=0; i<10; i++){
-		free(clipboard_content[i]);
+	int j;
+	for(j=0; j<10; j++){
+		free(clipboard_content[j]);
 	}
 
 	close(sock_fd);
