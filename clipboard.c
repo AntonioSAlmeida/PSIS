@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
+#include "LinkedList.h"
 #include "library.h"
 
 char **clipboard_content;
@@ -99,7 +100,7 @@ int main(int argc, char *argv[]){
 	int* c_fd = malloc(sizeof(int));
 	clipboard_content = malloc(10*sizeof(char*));
 
-	pthread_t thread_ids[10];
+	LinkedList * threads = initLinkedList();
 	
 
 	/*if(argc > 1){
@@ -155,16 +156,19 @@ int main(int argc, char *argv[]){
 	listen(sock_fd, 5);
 	printf("Ready to accept connections\n");
 
-	// TO DO - Make a way to end the loop. Maybe an order "2" that's sent from server?
+	connection * node=malloc(sizeof(connection));
+	LinkedList * lastnext=NULL;
 	int i=0;
 	while(1){
 		// Accept
 		client_fd = accept(sock_fd, (struct sockaddr *)&client_addr, &size_addr);
 		printf("Accepted one connection from %s\n", CLIPBOARD_SOCKET);
-
+		node->id=i;
+		lastnext=getlastNext(threads);
+		insertUnsortedLinkedList(threads, lastnext);
 		//Call new thread
 		*c_fd=client_fd;
-		pthread_create(&(thread_ids[i]), NULL, clipboard_thread_connection, c_fd);
+		pthread_create(&(node->id), NULL, clipboard_thread_connection, c_fd);
 		i++;
 		
 		

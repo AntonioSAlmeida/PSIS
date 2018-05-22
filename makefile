@@ -1,6 +1,7 @@
 all:
 	gcc -c library.c -o library.o
-	gcc -pthread clipboard.c library.o -o clipboard
+	gcc -c LinkedList.c -o LinkedList.o
+	gcc -pthread clipboard.c library.o LinkedList.o -o clipboard
 	gcc app_teste.c library.o -o app_teste
 
 clean:

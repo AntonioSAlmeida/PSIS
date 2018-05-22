@@ -195,3 +195,14 @@ LinkedList * insertUnsortedLinkedList(LinkedList * next, Item this)
 
   return new;
 }
+
+
+/*Get last next*/
+LinkedList * getlastNext(LinkedList* head)
+{
+  LinkedList*aux=head;
+  while(aux!=NULL){
+    aux=aux->next;
+  }
+  return aux;
+}

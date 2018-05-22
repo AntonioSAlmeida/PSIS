@@ -130,5 +130,9 @@ Item getItemLinkedList(LinkedList * node);
  */
 LinkedList * insertUnsortedLinkedList(LinkedList * next, Item this);
 
+
+/*Get last next*/
+LinkedList * getlastNext(LinkedList* head);
+
 /* End of: Protect multiple inclusions                              */
 #endif

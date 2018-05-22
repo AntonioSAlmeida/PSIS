@@ -1,4 +1,6 @@
 #include <sys/types.h>
+#include "LinkedList.h"
+#include <pthread.h>
 
 #define INBOUND_FIFO "INBOUND_FIFO"
 #define OUTBOUND_FIFO "OUTBOUND_FIFO"
@@ -15,6 +17,10 @@ typedef struct Message{
 	int region;
 	int data_size;
 } message;
+
+typedef struct Connection{
+	pthread_t id;
+} connection;
 
 int clipboard_connect(struct sockaddr_un socket_addr);
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count);
