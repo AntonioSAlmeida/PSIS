@@ -11,6 +11,7 @@
 #define COPY 0
 #define PASTE 1
 #define UPDATE 2
+#define SHUTDOWN 3
 #define MAXSIZE 1024
 
 

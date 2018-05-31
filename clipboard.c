@@ -140,7 +140,33 @@ int clipboard_send(int fd){
 
 }
 
-int update_broadcast(LinkedList * remote_connections, int region){
+
+
+void clipboard_shutdown(LinkedList * remotehead){
+	message	warning;
+	LinkedList * aux = remotehead;
+
+	char *warning_msg = (char*)malloc(sizeof(message));
+
+	while(aux!=NULL){
+		warning.order = SHUTDOWN;
+		warning.region = 0;
+		warning.data_size=0;
+	
+		memcpy(warning_msg, &warning, sizeof(warning));
+		
+		send(aux->fd, warning_msg, sizeof(message), 0);
+		printf("sent shutdown\n");
+		aux=aux->next;
+	}
+	
+	
+	free(warning_msg);
+	return;
+
+}
+
+int update_broadcast(LinkedList * remote_connections, int region, int fd_received){
 
 	//start mutex
 	char *region_copy = (char*)malloc((strlen(clipboard_content[region])+1)*sizeof(char));
@@ -162,18 +188,20 @@ int update_broadcast(LinkedList * remote_connections, int region){
 	LinkedList * aux = remote_connections;
 
 	while(aux != NULL){
-		if(send(aux->fd, warning_msg, sizeof(warning), 0) < 0){
-			perror("send: ");
-			free(region_copy);
-			free(warning_msg);
-			return -1;
-		}
+		if(aux->fd!=fd_received){
+			if(send(aux->fd, warning_msg, sizeof(warning), 0) < 0){
+				perror("send: ");
+				free(region_copy);
+				free(warning_msg);
+				return -1;
+			}
 
-		if(send(aux->fd, region_copy, warning.data_size, 0)<0){
-			perror("send: ");
-			free(region_copy);
-			free(warning_msg);
-			return -1;
+			if(send(aux->fd, region_copy, warning.data_size, 0)<0){
+				perror("send: ");
+				free(region_copy);
+				free(warning_msg);
+				return -1;
+			}
 		}
 		aux=aux->next;
 	}
@@ -228,9 +256,10 @@ void * local_thread_code(void * fdi){
 
 					free(buffdata);
 
-					printf("Boradcasting changes\n");
-					update_broadcast(remotehead, message_size->region);
-
+					if(remotehead!=NULL){
+						printf("Broadcasting changes\n");
+						update_broadcast(remotehead, message_size->region, -1);
+					}
 
 
 				}else if(message_size->order==PASTE){
@@ -275,10 +304,8 @@ void * local_thread_code(void * fdi){
 
 
 
-
-
-void * remote_thread_code(void * fdi){
-
+void * connected_thread_code(void * fdi){
+	printf("connected thread live\n");
 	int j = 0;
 	int * fd = fdi;
 	int client_fd=*fd;
@@ -288,20 +315,14 @@ void * remote_thread_code(void * fdi){
 	int count=0;
 	message *message_size=malloc(sizeof(message));
 
-	printf("remote thread live \n");
+	printf("connected thread live\n");
 	// Receive messages - 1st) size of message; 2nd) message to copy to clipboard
-
-	clipboard_send(client_fd);
-
-
 
 	while(1){
 		// signal(SIGINT, terminate_local_thread_code);
 		nbytes = recv(client_fd, buffstruct, sizeof(message), 0);
-		if(nbytes==0){
-			break;
-		}
-
+		
+		
 		if(nbytes!=-1){
 			//Build struct
 			memcpy(message_size, buffstruct, sizeof(message));
@@ -327,8 +348,11 @@ void * remote_thread_code(void * fdi){
 					printf("[%d] message: %s\n", j, clipboard_content[j]);
 				}
 
-				update_broadcast(remotehead, message_size->region);
+				update_broadcast(remotehead, message_size->region, client_fd);
 
+			 }else if(message_size->order == SHUTDOWN){
+			 	printf("fd: %d shutdown\n", client_fd);
+			 	break;
 			 }
 		 }
 		// if(endrtc){
@@ -338,7 +362,81 @@ void * remote_thread_code(void * fdi){
 		// 	exit(0);
 		// }
 	}
-	removeFromlist(&localhead, client_fd);
+	free(buffstruct);
+	free(message_size);
+	removeFromlist(&remotehead, client_fd);
+	close(client_fd);
+}
+
+
+
+
+
+
+void * remote_thread_code(void * fdi){
+
+	int j = 0;
+	int * fd = fdi;
+	int client_fd=*fd;
+	char * buffstruct=malloc(100*sizeof(char));
+
+	int nbytes=1;
+	int count=0;
+	message *message_size=malloc(sizeof(message));
+
+	printf("remote thread live \n");
+	// Receive messages - 1st) size of message; 2nd) message to copy to clipboard
+
+	
+	clipboard_send(client_fd);
+
+
+
+	while(1){
+		// signal(SIGINT, terminate_local_thread_code);
+		nbytes = recv(client_fd, buffstruct, sizeof(message), 0);
+		if(nbytes!=-1){
+			//Build struct
+			memcpy(message_size, buffstruct, sizeof(message));
+
+			if(message_size->order == UPDATE){
+
+				count = message_size->data_size;
+
+				char* buffdata = malloc(message_size->data_size);
+
+				nbytes = recv(client_fd, buffdata, message_size->data_size, 0);
+
+				printf("\nCopy\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
+
+				//Write in dynamic array
+				clipboard_content[message_size->region] = malloc(message_size->data_size);
+
+				memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
+
+				free(buffdata);
+
+				for( j = 0; j < 10; j++){
+					printf("[%d] message: %s\n", j, clipboard_content[j]);
+				}
+
+				update_broadcast(remotehead, message_size->region, client_fd);
+
+			 }else if(message_size->order == SHUTDOWN){
+			 	printf("fd: %d shutdown\n", client_fd);
+			 	break;
+			 }
+		 }
+		// if(endrtc){
+		// 	free(buffstruct);
+		// 	printf("Remote connection closed on fd: %d. Removed from remote connections list.\n", client_fd);
+		// 	endarc++;
+		// 	exit(0);
+		// }
+	}
+	free(buffstruct);
+	free(message_size);
+	removeFromlist(&remotehead, client_fd);
 	close(client_fd);
 }
 
@@ -579,6 +677,7 @@ int main(int argc, char *argv[]){
 
 	int remote_fd = -1;
 	int gateway_remote_fd=-1;
+	
 
 
 	clipboard_content = malloc(10*sizeof(char*));
@@ -587,6 +686,12 @@ int main(int argc, char *argv[]){
 	for(j=0; j<10; j++){
 		clipboard_content[j]=NULL;
 	}
+
+
+	pthread_create(&id_thread, NULL, accept_local_connection, NULL);
+
+	pthread_create(&id_thread, NULL, accept_remote_connection, NULL);
+
 
 	if(argc > 1){
 		if(!strcmp(argv[1], "-c")){
@@ -657,6 +762,13 @@ int main(int argc, char *argv[]){
 
 			printf("connected to remote clipboard\n");
 
+			clipboard_recv(remote_fd);
+
+			int * c_fd=malloc(sizeof(int));
+			*c_fd=remote_fd;
+
+			pthread_create(&id_thread, NULL, connected_thread_code, c_fd);
+
   			insertLinkedList(&remotehead, 0, remote_fd);
 
 
@@ -665,7 +777,7 @@ int main(int argc, char *argv[]){
 			printLinkedList(remotehead);
 
 
-			clipboard_recv(remote_fd);
+			
 
 			for( j = 0; j < 10; j++){
 				printf("[%d] message: %s\n", j, clipboard_content[j]);
@@ -674,15 +786,14 @@ int main(int argc, char *argv[]){
 		}
 	}
 
-	pthread_create(&id_thread, NULL, accept_local_connection, NULL);
 
-	pthread_create(&id_thread, NULL, accept_remote_connection, NULL);
 
 	j=0;
 	char * buffer=malloc(100*sizeof(char));
 	while(1){
 		fgets(buffer, 100*sizeof(char), stdin);
 		if(strcmp(buffer, "exit\n")==0){
+			clipboard_shutdown(remotehead);
 			close(gateway_remote_fd);
 			freeList(&remotehead);
 			freeList(&localhead);
