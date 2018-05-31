@@ -47,8 +47,8 @@ int main(){
 	clipboard_paste(sock_fd, 3, (char *)buff, 0);
 
 	printf("%s\n", (char*)buff);
-	
-	while(1){}
+
+	getchar();
 
 	close(sock_fd);
 	free(m);
