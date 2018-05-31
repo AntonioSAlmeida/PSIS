@@ -3,6 +3,5 @@ all:
 	gcc -c LinkedList.c -o LinkedList.o
 	gcc -pthread clipboard.c library.o LinkedList.o -o clipboard
 	gcc app_teste.c library.o -o app_teste
-
 clean:
-	rm *.o app_teste clipboard sock_16
+	rm *.o app_teste clipboard /tmp/unixsocket

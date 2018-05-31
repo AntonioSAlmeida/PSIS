@@ -37,17 +37,17 @@ int main(){
 	char * m=malloc(1000*sizeof(char));
 	void * buff=malloc(1000*sizeof(char));
 
-	strcpy(m, "Message in a bottle\n");
+	strcpy(m, "Message in a bottle");
 
 	//Send to clipboard something
-	clipboard_copy(sock_fd, 3, m, (strlen(m)+1)*sizeof(char));
+	clipboard_copy(sock_fd, 6, m, (strlen(m)+1)*sizeof(char));
 
 	sleep(1);
-	buff = malloc(1000*sizeof(char));
-	clipboard_paste(sock_fd, 3, (char *)buff, 0);
+	buff = malloc(MAXSIZE*sizeof(char));
+	clipboard_paste(sock_fd, 6, (char *)buff, MAXSIZE);
 
 	printf("%s\n", (char*)buff);
-
+	
 	getchar();
 
 	close(sock_fd);

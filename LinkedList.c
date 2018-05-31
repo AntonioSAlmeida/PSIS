@@ -1,6 +1,8 @@
 /* Header Inclusions                                              */
 #include<stdio.h>
 #include<stdlib.h>
+#include <unistd.h>
+
 
 
 
@@ -21,25 +23,31 @@ int lengthLinkedList(LinkedList * head)
   return counter;
 }
 
-
-void insertFirstLinkedList(LinkedList ** head, pthread_t id){
-  LinkedList * aux = (LinkedList*)malloc(sizeof(LinkedList));
-  aux->id=id;
-  aux->next=NULL;
-  *head=aux;
-}
  
-void insertLinkedList(LinkedList ** head, pthread_t id){
+void insertLinkedList(LinkedList ** head, pthread_t id, int fd){
   LinkedList * aux = NULL;
-  aux=*head;
-  
-  while(aux->next!=NULL){
-    aux=aux->next;
-  }
+  LinkedList * aux2 = NULL;
 
-  aux->next=(LinkedList*)malloc(sizeof(LinkedList));
-  aux->next->id=id;
-  aux->next->next=NULL;
+  if(*head==NULL){
+    aux = (LinkedList*)malloc(sizeof(LinkedList));
+    aux->id=id;
+    aux->fd=fd;
+    aux->next=NULL;
+    *head=aux;
+  }else{
+    aux=*head;
+    aux2=(LinkedList*)malloc(sizeof(LinkedList));
+    aux2->id=id;
+    aux2->fd=fd;
+    aux2->next=NULL;
+    
+    while(aux->next!=NULL){
+      aux=aux->next;
+    }
+
+    aux->next=aux2;
+  }
+  
 }
 
 
@@ -49,7 +57,37 @@ void printLinkedList(LinkedList * first)
 {
   LinkedList * aux = first;
   while(aux!=NULL){
-    printf("%lu\n", aux->id);
+    //printf("thread: %lu\n", aux->id);
+    printf("fd: %d\n", aux->fd);
     aux=aux->next;  
+  }
+}
+
+void removeFromlist(LinkedList ** first, int fd)
+{
+  LinkedList * aux = *first;
+  LinkedList * after = NULL;
+
+  if(aux->fd==fd){
+    *first=aux->next;
+    free(aux);
+  }else{
+    while(aux->next->fd!=fd){
+      aux=aux->next;  
+    }
+    after=aux->next->next;
+    free(aux->next);
+    aux->next=after;
+  }
+}
+
+void freeList(LinkedList ** first){
+  LinkedList * aux= *first;
+  LinkedList * aux2 = NULL;
+  while(aux!=NULL){
+    close(aux->fd);
+    aux2=aux->next;
+    free(aux);
+    aux=aux2;
   }
 }

@@ -4,12 +4,14 @@
 
 #define INBOUND_FIFO "INBOUND_FIFO"
 #define OUTBOUND_FIFO "OUTBOUND_FIFO"
-#define CLIPBOARD_SOCKET "./sock_16"
-#define REMOTE_PORT 1337
+#define CLIPBOARD_SOCKET "/tmp/unixsocket"
+#define GATEWAY_PORT 8010
 
 
 #define COPY 0
 #define PASTE 1
+#define UPDATE 2
+#define MAXSIZE 1024
 
 
 typedef struct Message{

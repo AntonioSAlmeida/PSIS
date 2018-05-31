@@ -9,13 +9,13 @@
 
 
 /********************************************************************************
- * Function called by the application to connect to a distributed clipboard.		*
- *																																							*
- * char *clipboard directory - directory where the clipboard was created.				*
- *																																							*
- * output - file descriptor of the socket created between the application and		*
- *					the clipboard. 																											*
- *																																							*
+ * Function called by the application to connect to a distributed clipboard.		
+ *																																							
+ * char *clipboard directory - directory where the clipboard was created.				
+ *																																							
+ * output - file descriptor of the socket created between the application and		
+ *					the clipboard. 																											
+ *																																							
  ********************************************************************************/
 int clipboard_connect(struct sockaddr_un server_addr){
 
@@ -34,13 +34,13 @@ int clipboard_connect(struct sockaddr_un server_addr){
 }
 
 /********************************************************************************
- * Copies data pointed by buf to a region on the local clipboard.								*
- *																																							*
- * char *clipboard directory - directory where the clipboard was created.				*
- *																																							*
- * output - size of data copied to buf.																					*
- *					0 if error.																													*
- *																																							*
+ * Copies data pointed by buf to a region on the local clipboard.								
+ *																																							
+ * char *clipboard directory - directory where the clipboard was created.				
+ *																																							
+ * output - size of data copied to buf.																					
+ *					0 if error.																													
+ *																																							
  ********************************************************************************/
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
 
@@ -87,14 +87,14 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
 }
 
 /********************************************************************************
- * Copies data from a region on the local clipboard to memory pointed by buf.		*
- *																																							*
+ * Copies data from a region on the local clipboard to memory pointed by buf.		
+ *																						
  * char *clipboard directory - directory where the clipboard was created.				*
- *																																							*
- * output - file descriptor of the socket created between the application and		*
- *					the clipboard. 																											*
-*					0 if error.																														*
- *																																							*
+ *																																							
+ * output - file descriptor of the socket created between the application and		
+ *					the clipboard. 																											
+ *					0 if error.																													
+ *																																							
  ********************************************************************************/
 int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 
@@ -105,7 +105,7 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 	message msg_struct;
 	msg_struct.order = PASTE;
 	msg_struct.region = region;
-	msg_struct.data_size = 0;
+	msg_struct.data_size = count;
 	char *bufstruct=malloc(sizeof(message));
 	int err_msg;
 	char *msg = malloc(sizeof(message));
@@ -127,11 +127,15 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 
 	memcpy(&msg_struct, bufstruct, sizeof(message));
 
+	
 	err_msg = recv(clipboard_id, buf, msg_struct.data_size, 0);
 	if(err_msg == -1){
 		perror("clipboard: ");
 		return 0;
 	}
+	
+
+	
 
 	free(bufstruct);
 	free(msg);
@@ -140,13 +144,13 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 
 /********************************************************************************
  * Waits for a change in a certain region and, when it happens, copies the new	*
- * data	to memory pointed by buf.																								*
- *																																							*
- * char *clipboard directory - directory where the clipboard was created.				*
- *																																							*
- * output - number of bytes copied to buf.																			*
- *					0 if error.																													*
- *																																							*
+ * data	to memory pointed by buf.																								
+ *																																							
+ * char *clipboard directory - directory where the clipboard was created.				
+ *																																							
+ * output - number of bytes copied to buf.																			
+ *					0 if error.																													
+ *																																							
  ********************************************************************************/
 int clipboard_wait(int clipboard_id, int region, void *buf, size_t count){
 
@@ -178,11 +182,11 @@ int clipboard_wait(int clipboard_id, int region, void *buf, size_t count){
 	return count;
 }
 
-/********************************************************************************
- * Closes the connection between the application and the local clipboard.				*
- *																																							*
+/*******************************************************************************
+ * Closes the connection between the application and the local clipboard.				
+ *																																							
  * int clipboard_id - file descriptor of the connection to the local clipboard.	*
- *																																							*
+ *																																							
  ********************************************************************************/
 void clipboard_close(int clipboard_id){
 	close(clipboard_id);
