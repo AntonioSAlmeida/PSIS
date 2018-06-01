@@ -206,14 +206,14 @@ int update_broadcast(LinkedList * remote_connections, int region, int fd_receive
 		if(aux->fd!=fd_received){
 			if(send(aux->fd, warning_msg, sizeof(warning), 0) < 0){
 				perror("send: ");
-				// free(region_copy);
+				
 				free(warning_msg);
 				exit(1);
 			}
 
 			if(send(aux->fd, clipboard_content[region], warning.data_size, 0)<0){
 				perror("send: ");
-				// free(region_copy);
+				
 				free(warning_msg);
 				exit(1);
 			}
@@ -222,7 +222,6 @@ int update_broadcast(LinkedList * remote_connections, int region, int fd_receive
 	}
 	pthread_mutex_unlock(&lock);//unblocks write
 
-	// free(region_copy);
 	free(warning_msg);
 	return 1;
 }
@@ -275,26 +274,38 @@ void * local_thread_code(void * fdi){
     				}
 
 					while(count>0){
+					;
 						nbytes = recv(client_fd, buffdata, message_size->data_size, 0);
-						count-=nbytes;
+					 	count-=nbytes;
 					}
 
 					printf("\nCopy\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
 
 
-					int bytes=0; //just so that realloc doesn't give a warning
+					//just so that realloc doesn't give a warning
 					//Write in dynamic array
 					pthread_mutex_lock(&lock);//blocks write and read
 
-					clipboard_content[message_size->region] = realloc(clipboard_content[message_size->region], message_size->data_size*sizeof(char));
+					if(clipboard_content[message_size->region]==NULL){
+						clipboard_content[message_size->region]= malloc(message_size->data_size);
+					}else{
+						free(clipboard_content[message_size->region]);
+						clipboard_content[message_size->region]= malloc(message_size->data_size);
+					}
+
+					 
+
+
 					if(clipboard_content[message_size->region]==NULL){
 						printf("Error! memory not allocated.");
 						exit(1);
 					}
 
 					memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
+
 					pthread_mutex_unlock(&lock);//unblocks write and read
-					printf("\tbroadcasting changes to region %d\n", message_size->region);
+					printf("\tchanges to region %d\n", message_size->region);
+					
 					switch (message_size->region) {
 						case 0:
 							pthread_cond_broadcast(&wait_reg_0);
@@ -1112,8 +1123,7 @@ int main(int argc, char *argv[]){
 			printf("\nClipboard:\n");
 			for( j = 0; j < 10; j++){
 				if(clipboard_content[j]!=NULL){
-
-					printf("region [%d] message: %s\n", j, clipboard_content[j]);
+					printf("region [%d] message: %s\n", j, clipboard_content[j]); 
 				}
 			}
 			pthread_mutex_unlock(&lock);//unblocks write

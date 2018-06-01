@@ -12,8 +12,12 @@ make
 Delete executables:
 make clean
 
-Run clipboard:
+Run clipboard solo:
 ./clipboard
+
+Run clipboard connected:
+./clipboard -c <ip> <port>
+
 
 Run app_teste:
 ./app_teste

@@ -54,10 +54,13 @@ int main(){
 	srand(getpid());
 	reg = (rand() % 10);
 	//Threads with even PID's write a string, threads with odd PID's write another
-	if(getpid()%2==0)
-		clipboard_copy(sock_fd, reg, m, (strlen(m)+1)*sizeof(char));
-	else
-		clipboard_copy(sock_fd, reg, buff2, (strlen(buff2)+1)*sizeof(char));
+	if(getpid()%2==0){
+		clipboard_copy(sock_fd, reg, (char*)m, (strlen(m)+1)*sizeof(char));	
+	}else{
+		clipboard_copy(sock_fd, reg, (char*)buff2, (strlen(buff2)+1)*sizeof(char));	
+	}
+	
+	sleep(1);
 
 
 	if(getpid()==pid){

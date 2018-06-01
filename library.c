@@ -44,7 +44,7 @@ int clipboard_connect(struct sockaddr_un server_addr){
  ********************************************************************************/
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
 
-	if(region >= 10){
+	if(region >= 10 || region<0){
 		perror("invalid region: ");
 		return 0;
 	}
@@ -53,6 +53,7 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
 	msg_struct.order = COPY;
 	msg_struct.region = region;
 	msg_struct.data_size = count;
+
 	int aux_count=count;
 	int sent=0;
 	char *msg = malloc(sizeof(message));
@@ -62,25 +63,20 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
 	sent = send(clipboard_id, msg, sizeof(message), 0);
 
 	if(sent == -1){
-		perror("clipboard: ");
+		perror("send copy: ");
 		return 0;
 	}
 
 	while(aux_count > 0){
 		sent = send(clipboard_id, buf, msg_struct.data_size, 0);
 		if(sent == -1){
-			perror("clipboard: ");
+			perror("send copy: ");
 			return 0;
 		}
-		//if(aux_count!=count){
-		//	printf("repeating send\n");
-		//}
 
 		aux_count-=sent;
-		//printf("%d\n", aux_count);
 	}
 
-	//printf("came out\n");
 	free(msg);
 
 	return count;
