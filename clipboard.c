@@ -267,16 +267,16 @@ void * local_thread_code(void * fdi){
 
 					count=message_size->data_size;
 
-					char * buffdata=malloc(sizeof(message_size->data_size));
+					char * buffdata=malloc(message_size->data_size);
 					if(buffdata==NULL){
        					printf("Error! memory not allocated.");
      					exit(1);
     				}
 
 					while(count>0){
-					;
+
 						nbytes = recv(client_fd, buffdata, message_size->data_size, 0);
-					 	count-=nbytes;
+					 	count=count-nbytes;
 					}
 
 					printf("\nCopy\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
@@ -286,14 +286,8 @@ void * local_thread_code(void * fdi){
 					//Write in dynamic array
 					pthread_mutex_lock(&lock);//blocks write and read
 
-					if(clipboard_content[message_size->region]==NULL){
-						clipboard_content[message_size->region]= malloc(message_size->data_size);
-					}else{
-						free(clipboard_content[message_size->region]);
-						clipboard_content[message_size->region]= malloc(message_size->data_size);
-					}
-
-					 
+				
+					clipboard_content[message_size->region]= realloc(clipboard_content[message_size->region], message_size->data_size);
 
 
 					if(clipboard_content[message_size->region]==NULL){
@@ -466,7 +460,6 @@ void * local_thread_code(void * fdi){
 				}
 			}
 		}
-		free(buffdata);
 		free(buffstruct);
 		free(message_size);
 		close(client_fd);

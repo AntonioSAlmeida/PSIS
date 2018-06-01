@@ -35,7 +35,7 @@ int main(){
 	char* region = malloc(100*sizeof(char));
 	int reg = 0;
 	void* buff = malloc(100*sizeof(char));
-	void* buff2 = malloc(100*sizeof(char));
+	char* buff2 = malloc(100*sizeof(char));
 
 	//User input
 	printf("Write something to copy to some regions\n->");
@@ -55,27 +55,19 @@ int main(){
 	reg = (rand() % 10);
 	//Threads with even PID's write a string, threads with odd PID's write another
 	if(getpid()%2==0){
-		clipboard_copy(sock_fd, reg, (char*)m, (strlen(m)+1)*sizeof(char));	
+		clipboard_copy(sock_fd, reg, m, (strlen(m)+1)*sizeof(char));	
 	}else{
-		clipboard_copy(sock_fd, reg, (char*)buff2, (strlen(buff2)+1)*sizeof(char));	
+		clipboard_copy(sock_fd, reg, buff2, (strlen(buff2)+1)*sizeof(char));	
 	}
 	
-	sleep(1);
-
-
-	if(getpid()==pid){
-		//wait until position 3 changes
+	if(pid==getpid()){
 		printf("waiting\n");
 		clipboard_wait(sock_fd, 3, buff, 100);
-		printf("WAITED ALL THIS TIME FOR THIS!?!?\n->%s\n", (char*)buff);	
-		close(sock_fd);
-		free(m);
-		free(buff);
-		free(buff2);
-		exit(0);
+		printf("WAITED ALL THIS TIME FOR THIS!?!?\n->%s\n", (char*)buff);
 	}
-	
-	
-	
-
+	close(sock_fd);
+	free(m);
+	free(buff);
+	free(buff2);
+	exit(0);
 }

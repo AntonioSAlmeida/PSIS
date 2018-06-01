@@ -6,4 +6,4 @@ all:
 	gcc app_teste2.c library.o -o app_teste2
 	gcc app_teste3.c library.o -o app_teste3
 clean:
-	rm *.o app_teste clipboard /tmp/unixsocket
+	rm *.o app_teste app_teste2 app_teste3 clipboard /tmp/unixsocket
