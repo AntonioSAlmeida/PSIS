@@ -35,7 +35,7 @@ int main(){
 	char* region = malloc(100*sizeof(char));
 	int reg = 0;
 	void* buff = malloc(100*sizeof(char));
-	void* buff2 = malloc(100*sizeof(char));
+	char* buff2 = malloc(100*sizeof(char));
 
 	//User input
 	printf("Write something to copy to some regions\n->");
@@ -63,13 +63,12 @@ int main(){
 		printf("waiting\n");
 		clipboard_wait(sock_fd, 3, buff, 100);
 		printf("WAITED ALL THIS TIME FOR THIS!?!?\n->%s\n", (char*)buff);	
-		close(sock_fd);
-		free(m);
-		free(buff);
-		free(buff2);
-		exit(0);
 	}
-	
+	close(sock_fd);
+	free(m);
+	free(buff);
+	free(buff2);
+	exit(0);
 	
 	
 
