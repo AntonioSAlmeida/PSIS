@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
-#include "library.h"
+#include "clipboard.h"
 
 
 int main(){
@@ -48,8 +48,8 @@ int main(){
 	clipboard_copy(sock_fd, reg, m, (strlen(m)+1)*sizeof(char));
 
     nbytes=0;
-	nbytes = clipboard_paste(sock_fd, 3, (char *)buff, 5);
-	printf("[PASTED] %s\n", (char*)buff);
+	// nbytes = clipboard_paste(sock_fd, 3, (char *)buff, 5);
+	// printf("[PASTED] %s\n", (char*)buff);
 
 	//wait until position 3 changes
 	printf("waiting\n");

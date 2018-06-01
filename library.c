@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "library.h"
 #include "LinkedList.h"
-
+#include "clipboard.h"
+#include "message.h"
 
 /********************************************************************************
  * Function called by the application to connect to a distributed clipboard.
@@ -133,9 +133,6 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 		perror("clipboard: ");
 		return 0;
 	}
-
-
-
 
 	free(bufstruct);
 	free(msg);

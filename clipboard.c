@@ -10,7 +10,8 @@
 #include <signal.h>
 
 #include "LinkedList.h"
-#include "library.h"
+#include "clipboard.h"
+#include "message.h"
 
 char **clipboard_content;
 pthread_t id_thread;
@@ -285,7 +286,7 @@ void * local_thread_code(void * fdi){
 					//Write in dynamic array
 					pthread_mutex_lock(&lock);//blocks write and read
 
-					clipboard_content[message_size->region]=realloc(clipboard_content[message_size->region], message_size->data_size*sizeof(char));
+					clipboard_content[message_size->region] = realloc(clipboard_content[message_size->region], message_size->data_size*sizeof(char));
 					if(clipboard_content[message_size->region]==NULL){
 						printf("Error! memory not allocated.");
 						exit(1);
@@ -305,7 +306,7 @@ void * local_thread_code(void * fdi){
 							pthread_cond_broadcast(&wait_reg_2);
 							break;
 						case 3:
-							pthread_cond_signal(&wait_reg_3);
+							pthread_cond_broadcast(&wait_reg_3);
 							break;
 						case 4:
 							pthread_cond_broadcast(&wait_reg_4);
@@ -523,6 +524,40 @@ void * connected_thread_code(void * fdi){
 					printf("updated [%d] message: %s\n", j, clipboard_content[j]);
 			}
 			pthread_mutex_unlock(&lock);//unblocks write
+			printf("\tbroadcasting changes to region %d\n", message_size->region);
+			switch (message_size->region) {
+				case 0:
+					pthread_cond_broadcast(&wait_reg_0);
+					break;
+				case 1:
+					pthread_cond_broadcast(&wait_reg_1);
+					break;
+				case 2:
+					pthread_cond_broadcast(&wait_reg_2);
+					break;
+				case 3:
+					pthread_cond_broadcast(&wait_reg_3);
+					break;
+				case 4:
+					pthread_cond_broadcast(&wait_reg_4);
+					break;
+				case 5:
+					pthread_cond_broadcast(&wait_reg_5);
+					break;
+				case 6:
+					pthread_cond_broadcast(&wait_reg_6);
+					break;
+				case 7:
+					pthread_cond_broadcast(&wait_reg_7);
+					break;
+				case 8:
+					pthread_cond_broadcast(&wait_reg_8);
+					break;
+				case 9:
+					pthread_cond_broadcast(&wait_reg_9);
+					break;
+			}
+
 
 			update_broadcast(remotehead, message_size->region, client_fd);
 
@@ -606,6 +641,40 @@ void * remote_thread_code(void * fdi){
 					printf("updated [%d] message: %s\n", j, clipboard_content[j]);
 			}
 			pthread_mutex_unlock(&lock);//unblocks write and read
+			printf("\tbroadcasting changes to region %d\n", message_size->region);
+			switch (message_size->region) {
+				case 0:
+					pthread_cond_broadcast(&wait_reg_0);
+					break;
+				case 1:
+					pthread_cond_broadcast(&wait_reg_1);
+					break;
+				case 2:
+					pthread_cond_broadcast(&wait_reg_2);
+					break;
+				case 3:
+					pthread_cond_broadcast(&wait_reg_3);
+					break;
+				case 4:
+					pthread_cond_broadcast(&wait_reg_4);
+					break;
+				case 5:
+					pthread_cond_broadcast(&wait_reg_5);
+					break;
+				case 6:
+					pthread_cond_broadcast(&wait_reg_6);
+					break;
+				case 7:
+					pthread_cond_broadcast(&wait_reg_7);
+					break;
+				case 8:
+					pthread_cond_broadcast(&wait_reg_8);
+					break;
+				case 9:
+					pthread_cond_broadcast(&wait_reg_9);
+					break;
+			}
+
 
 			update_broadcast(remotehead, message_size->region, client_fd);
 
@@ -919,7 +988,7 @@ int main(int argc, char *argv[]){
 				exit(-1);
 			}
 
-			char * port = malloc(10*sizeof(char));
+			char* port = malloc(10*sizeof(char));
 			if(port==NULL){
 				printf("Error! memory not allocated.");
 				exit(1);
