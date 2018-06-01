@@ -765,7 +765,7 @@ int main(int argc, char *argv[]){
 			inet_aton(argv[2], &remote_addr.sin_addr);
 
 			if(-1 == connect(gateway_remote_fd, (struct sockaddr *) &remote_addr, sizeof(remote_addr))){
-				printf("Error connecting\n");
+				perror("connect: ");
 				exit(-1);
 			}
 
