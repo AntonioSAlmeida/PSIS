@@ -16,6 +16,7 @@ char **clipboard_content;
 pthread_t id_thread;
 LinkedList * localhead = NULL;
 LinkedList * remotehead = NULL;
+
 pthread_rwlock_t lock;
 
 
@@ -475,18 +476,16 @@ void * remote_thread_code(void * fdi){
 
 
 			memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
-
-			pthread_rwlock_unlock(&lock);//unblocks write and read
+	
 
 			free(buffdata);
 
-			pthread_rwlock_wrlock(&lock);//blocks write
 
 			for( j = 0; j < 10; j++){
 				if(clipboard_content[j]!=NULL)
 					printf("updated [%d] message: %s\n", j, clipboard_content[j]);
 			}
-			pthread_rwlock_unlock(&lock);//unblocks write
+			pthread_rwlock_unlock(&lock);//unblocks write and read
 
 			update_broadcast(remotehead, message_size->region, client_fd);
 
@@ -561,9 +560,7 @@ void * accept_local_connection(){
 
 		pthread_rwlock_rdlock(&lock);//blocks write and read
   		insertLinkedList(&localhead, id_thread, client_fd);
-  		pthread_rwlock_unlock(&lock);//unblocks write and read
 
-		pthread_rwlock_wrlock(&lock);//blocks write
 		printLinkedList(localhead);
 		pthread_rwlock_unlock(&lock);//unblocks write
 
@@ -702,9 +699,7 @@ void * accept_remote_connection(){
 
 		pthread_rwlock_rdlock(&lock);//blocks write and read
   		insertLinkedList(&remotehead, id_thread, client_fd);
-  		pthread_rwlock_unlock(&lock);//unblocks write and read
-
-		pthread_rwlock_wrlock(&lock);//blocks write
+ 
 		printLinkedList(remotehead);
 		pthread_rwlock_unlock(&lock);//unblocks write
 
@@ -844,9 +839,7 @@ int main(int argc, char *argv[]){
 
 			pthread_rwlock_rdlock(&lock);//blocks write and read
   			insertLinkedList(&remotehead, 0, remote_fd);
-  			pthread_rwlock_unlock(&lock);//unblocks write and read
 
-			pthread_rwlock_wrlock(&lock);//blocks write
 			printLinkedList(remotehead);
 			pthread_rwlock_unlock(&lock);//unblocks write
 
@@ -891,9 +884,10 @@ int main(int argc, char *argv[]){
 			exit(0);
 		}else if(strcmp(buffer, "print clipboard\n")==0){
 			pthread_rwlock_wrlock(&lock);//blocks write
+			printf("\nClipboard:\n");
 			for( j = 0; j < 10; j++){
 				if(clipboard_content[j]!=NULL){
-					printf("\nClipboard:\n");
+					
 					printf("region [%d] message: %s\n", j, clipboard_content[j]);
 				}
 			}

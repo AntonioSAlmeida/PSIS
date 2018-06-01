@@ -38,17 +38,20 @@ int main(){
 	void * buff=malloc(1000*sizeof(char));
 
 	strcpy(m, "Message in a bottle");
-
-	//Send to clipboard something
 	clipboard_copy(sock_fd, 8, m, (strlen(m)+1)*sizeof(char));
-
-	sleep(1);
-	buff = malloc(MAXSIZE*sizeof(char));
-	clipboard_paste(sock_fd, 8, (char *)buff, MAXSIZE);
-
-	printf("%s\n", (char*)buff);
 	
-	getchar();
+    nbytes=0;
+	
+	//Send to clipboard something
+	while(nbytes!=-1){
+		nbytes=clipboard_paste(sock_fd, 8, (char *)buff, MAXSIZE);
+		sleep(2);
+	}
+	//sleep(1);
+	//buff = malloc(MAXSIZE*sizeof(char));
+	//
+
+	//printf("%s\n", (char*)buff);
 
 	close(sock_fd);
 	free(m);
