@@ -40,11 +40,11 @@ int main(){
 	strcpy(m, "Message in a bottle");
 
 	//Send to clipboard something
-	clipboard_copy(sock_fd, 6, m, (strlen(m)+1)*sizeof(char));
+	clipboard_copy(sock_fd, 8, m, (strlen(m)+1)*sizeof(char));
 
 	sleep(1);
 	buff = malloc(MAXSIZE*sizeof(char));
-	clipboard_paste(sock_fd, 6, (char *)buff, MAXSIZE);
+	clipboard_paste(sock_fd, 8, (char *)buff, MAXSIZE);
 
 	printf("%s\n", (char*)buff);
 	

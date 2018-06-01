@@ -16,46 +16,11 @@ char **clipboard_content;
 pthread_t id_thread;
 LinkedList * localhead = NULL;
 LinkedList * remotehead = NULL;
-
-// int endmain=0, endltc=0, endrtc=0, endalc=0, endarc=0;
-
+pthread_rwlock_t lock;
 
 
+pthread_rwlock_t lock=PTHREAD_RWLOCK_INITIALIZER;
 
-// void terminate_main(){
-// 	printf("f1\n");
-// 	while(endmain!=2){}
-// 	return;
-// }
-
-// void terminate_accept_remote_connection(){
-// 	printf("f2\n");
-// 	while(endarc!=lengthLinkedList(remotehead)){}
-// 	return;
-// }
-
-// void terminate_accept_local_connection(){
-// 	printf("f3\n");
-// 	while(endarc!=lengthLinkedList(localhead)){}
-// 	return;
-// }
-
-// void terminate_remote_thread_code(){
-// 	printf("f4\n");
-// 	endrtc=1;
-// 	return;
-// }
-
-// void terminate_local_thread_code(){
-// 	printf("f5\n");
-// 	endltc=1;
-// 	return;
-// }
-
-
-int sendregion(int fd, int region){
-	send(fd, clipboard_content[region], sizeof(clipboard_content[region]), 0);
-}
 
 int clipboard_recv(int fd){
 
@@ -65,25 +30,48 @@ int clipboard_recv(int fd){
 
 	message	warning;
 	char* warning_msg = (char*)malloc(sizeof(message));
+	if(warning_msg==NULL)                     
+    {
+        printf("Error! memory not allocated.");
+        exit(1);
+    }
 
+	pthread_rwlock_rdlock(&lock);//blocks read and write
 
 	for(i = 0; i < 10; i++){
 
 		nbytes = recv(fd, warning_msg, sizeof(message), 0);
+		if(nbytes==-1){
+			perror("Recv: ");
+			exit(1);
+		}
+
 		memcpy(&warning, warning_msg, sizeof(message));
 
 		count = warning.data_size;
 		if(count>0){
 			char* buffdata = malloc(warning.data_size);
+			if(buffdata==NULL)                     
+    		{
+        		printf("Error! memory not allocated.");
+        		exit(1);
+    		}
+
 			nbytes = recv(fd, buffdata, count, 0);
 			if(nbytes==-1){
-				free(buffdata);
-				break;
+				perror("Recv: ");
+				exit(1);
 			}
 			//Write in dynamic array
 			if(warning.data_size>0){
+			
 				clipboard_content[i] = malloc(warning.data_size);
+				if(buffdata==NULL){
+        			printf("Error! memory not allocated.");
+        			exit(1);
+    			}
 				memcpy(clipboard_content[i], buffdata, warning.data_size);
+				
 			}
 
 
@@ -91,6 +79,8 @@ int clipboard_recv(int fd){
 		}
 
 	}
+	pthread_rwlock_unlock(&lock);//unlocks
+
 	free(warning_msg);
 
 	return 1;
@@ -98,45 +88,47 @@ int clipboard_recv(int fd){
 
 
 int clipboard_send(int fd){
-	char **clip_copy = (char**)malloc(10*sizeof(char*));
+
 	int i = 0;
+	int nbytes=0;
 
-
-	//start mutex here
-
-	for(i = 0; i < 10; i++){
-
-		if(clipboard_content[i] != NULL){
-			clip_copy[i] = (char*)malloc(sizeof(clipboard_content[i]));
-			memcpy(clip_copy[i], clipboard_content[i], (strlen(clipboard_content[i])+1)*sizeof(char));
-		}
-	}
-
-	//free mutex here
 
 	message	warning;
 
-
 	char *warning_msg = (char*)malloc(sizeof(message));
+	if(warning_msg==NULL){
+       	printf("Error! memory not allocated.");
+     	exit(1);
+    }
 
+	pthread_rwlock_wrlock(&lock);//blocks write
 	for(i = 0; i < 10; i++){
 		warning.order = UPDATE;
 		warning.region = i;
 		warning.data_size=0;
 		if(clipboard_content[i]!=NULL)
 			warning.data_size = (strlen(clipboard_content[i])+1)*sizeof(char);
+		
 		memcpy(warning_msg, &warning, sizeof(warning));
+		
 		send(fd, warning_msg, sizeof(message), 0);
-		if(warning.data_size!=0)
-			send(fd, clip_copy[i], warning.data_size, 0);
-	}
+		if(nbytes==-1){
+			perror("Send: ");;
+			exit(1);
+		}
 
-	for(i = 0; i < 10; i++){
-		free(clip_copy[i]);
+		if(warning.data_size!=0){
+			send(fd, clipboard_content[i], warning.data_size, 0);
+			if(nbytes==-1){
+				perror("Send: ");
+     			exit(1);
+			}
+		}
 	}
-	free(clip_copy);
+	pthread_rwlock_unlock(&lock);//unblocks
+
 	free(warning_msg);
-	return 1;
+	return 0;
 
 }
 
@@ -144,9 +136,14 @@ int clipboard_send(int fd){
 
 void clipboard_shutdown(LinkedList * remotehead){
 	message	warning;
+	int nbytes=0;
 	LinkedList * aux = remotehead;
 
 	char *warning_msg = (char*)malloc(sizeof(message));
+	if(warning_msg==NULL){
+       	printf("Error! memory not allocated.");
+     	exit(1);
+    }
 
 	while(aux!=NULL){
 		warning.order = SHUTDOWN;
@@ -156,6 +153,10 @@ void clipboard_shutdown(LinkedList * remotehead){
 		memcpy(warning_msg, &warning, sizeof(warning));
 		
 		send(aux->fd, warning_msg, sizeof(message), 0);
+		if(nbytes==-1){
+			perror("Send: ");
+     		exit(1);
+		}
 		printf("sent shutdown\n");
 		aux=aux->next;
 	}
@@ -168,45 +169,48 @@ void clipboard_shutdown(LinkedList * remotehead){
 
 int update_broadcast(LinkedList * remote_connections, int region, int fd_received){
 
-	//start mutex
-	char *region_copy = (char*)malloc((strlen(clipboard_content[region])+1)*sizeof(char));
-	memcpy(region_copy, clipboard_content[region], (strlen(clipboard_content[region])+1)*sizeof(char));
-	//end mutex
-
 	int i = 0;
 
 	message	warning;
 	warning.order = UPDATE;
 	warning.region = region;
-	warning.data_size = (strlen(region_copy)+1)*sizeof(char);
 
 	char *warning_msg = (char*)malloc(sizeof(message));
+	if(warning_msg==NULL){
+       	printf("Error! memory not allocated.");
+     	exit(1);
+    }
+	LinkedList * aux = remote_connections;
 
+
+	pthread_rwlock_wrlock(&lock);//blocks write
+
+	warning.data_size = (strlen(clipboard_content[region])+1)*sizeof(char);
+	
 	memcpy(warning_msg, &warning, sizeof(message));
 
-
-	LinkedList * aux = remote_connections;
 
 	while(aux != NULL){
 		if(aux->fd!=fd_received){
 			if(send(aux->fd, warning_msg, sizeof(warning), 0) < 0){
 				perror("send: ");
-				free(region_copy);
+				// free(region_copy);
 				free(warning_msg);
-				return -1;
+				exit(1);
 			}
 
-			if(send(aux->fd, region_copy, warning.data_size, 0)<0){
+			if(send(aux->fd, clipboard_content[region], warning.data_size, 0)<0){
 				perror("send: ");
-				free(region_copy);
+				// free(region_copy);
 				free(warning_msg);
-				return -1;
+				exit(1);
 			}
 		}
 		aux=aux->next;
 	}
+	pthread_rwlock_unlock(&lock);//unblocks write
 
-	free(region_copy);
+	// free(region_copy);
 	free(warning_msg);
 	return 1;
 }
@@ -218,15 +222,25 @@ void * local_thread_code(void * fdi){
 		int * fd = fdi;
 		int client_fd=*fd;
 		char * buffstruct=malloc(sizeof(message));
+		if(buffstruct==NULL){
+       		printf("Error! memory not allocated.");
+     		exit(1);
+    	}
 
 		int nbytes=1;
+		int nbytes2=0;
 		int count=0;
 		message *message_size=malloc(sizeof(message));
+		if(message_size==NULL){
+       		printf("Error! memory not allocated.");
+     		exit(1);
+    	}
 
 		// Receive messages - 1st) size of message; 2nd) message to coppdate_broadcast(remotehead, message_size->y to clipboard
 		while(nbytes!=-1){
-			// signal(SIGINT, terminate_local_thread_code);
+			
 			nbytes = recv(client_fd, buffstruct, sizeof(message), 0);
+
 			if(nbytes==0){
 				break;
 			}
@@ -241,6 +255,10 @@ void * local_thread_code(void * fdi){
 					count=message_size->data_size;
 
 					char * buffdata=malloc(sizeof(message_size->data_size));
+					if(buffdata==NULL){
+       					printf("Error! memory not allocated.");
+     					exit(1);
+    				}
 
 					while(count>0){
 						nbytes = recv(client_fd, buffdata, message_size->data_size, 0);
@@ -248,11 +266,20 @@ void * local_thread_code(void * fdi){
 					}
 
 					printf("\nCopy\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
+					
 
+					int bytes=0; //just so that realloc doesn't give a warning
 					//Write in dynamic array
-					clipboard_content[message_size->region] = malloc(message_size->data_size*sizeof(char));
-
+					pthread_rwlock_rdlock(&lock);//blocks write and read
+				
+					clipboard_content[message_size->region]=realloc(clipboard_content[message_size->region], message_size->data_size*sizeof(char));
+					if(clipboard_content[message_size->region]==NULL){
+						printf("Error! memory not allocated.");
+						exit(1);
+					}
+					
 					memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
+					pthread_rwlock_unlock(&lock);//unblocks write and read
 
 					free(buffdata);
 
@@ -270,30 +297,38 @@ void * local_thread_code(void * fdi){
 
 					memcpy(buffstruct, message_size, sizeof(message));
 
-					send(client_fd, buffstruct, sizeof(message), 0);
+					nbytes2=send(client_fd, buffstruct, sizeof(message), 0);
+					if(nbytes2==-1){
+						perror("Send: ");
+     					exit(1);
+					}
 
 
 					//Sending message
 
 					char * buffdata=malloc(sizeof(message_size->data_size));
+					if(buffdata==NULL){
+						printf("Error! memory not allocated.");
+     					exit(1);
+					}
+
+					pthread_rwlock_wrlock(&lock);//blocks write
 
 					memcpy(buffdata, clipboard_content[message_size->region], message_size->data_size);
 
-					send(client_fd, buffdata, message_size->data_size, 0);
+					pthread_rwlock_unlock(&lock);//unblocks write
+
+					nbytes2=send(client_fd, buffdata, message_size->data_size, 0);
+					if(nbytes2==-1){
+						perror("Send: ");
+     					exit(1);
+					}
 
 					free(buffdata);
 
 
 				}
 
-				// if(endltc){
-				// 	free(buffstruct);
-				// 	free(message_size);
-				// 	printf("Local connection closed on fd: %d. Removed from local connections list.\n", client_fd);
-				// 	endalc++;
-				// 	exit(0);
-
-				// }
 			}
 		}
 		free(buffstruct);
@@ -305,62 +340,77 @@ void * local_thread_code(void * fdi){
 
 
 void * connected_thread_code(void * fdi){
-	printf("connected thread live\n");
+
 	int j = 0;
 	int * fd = fdi;
 	int client_fd=*fd;
 	char * buffstruct=malloc(100*sizeof(char));
+	if(buffstruct==NULL){
+		printf("Error! memory not allocated.");
+		exit(1);
+	}
 
 	int nbytes=1;
 	int count=0;
 	message *message_size=malloc(sizeof(message));
+	if(message_size==NULL){
+		printf("Error! memory not allocated.");
+		exit(1);
+	}
 
 	printf("connected thread live\n");
 	// Receive messages - 1st) size of message; 2nd) message to copy to clipboard
 
-	while(1){
-		// signal(SIGINT, terminate_local_thread_code);
+	while(nbytes!=-1){
+		
 		nbytes = recv(client_fd, buffstruct, sizeof(message), 0);
 		
 		
-		if(nbytes!=-1){
-			//Build struct
-			memcpy(message_size, buffstruct, sizeof(message));
+		//Build struct
+		memcpy(message_size, buffstruct, sizeof(message));
 
-			if(message_size->order == UPDATE){
+		if(message_size->order == UPDATE){
 
-				count = message_size->data_size;
+			count = message_size->data_size;
 
-				char* buffdata = malloc(message_size->data_size);
+			char* buffdata = malloc(message_size->data_size);
+			if(buffdata==NULL){
+				printf("Error! memory not allocated.");
+				exit(1);
+			}
 
-				nbytes = recv(client_fd, buffdata, message_size->data_size, 0);
+			nbytes = recv(client_fd, buffdata, message_size->data_size, 0);
 
-				printf("\nCopy\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
+			printf("\nUpdate\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
 
-				//Write in dynamic array
-				clipboard_content[message_size->region] = malloc(message_size->data_size);
+			pthread_rwlock_rdlock(&lock);//blocks write and read
+			//Write in dynamic array
+			clipboard_content[message_size->region] = realloc(clipboard_content[message_size->region], message_size->data_size);
+			if(clipboard_content[message_size->region]==NULL){
+				printf("Error! memory not allocated.");
+				exit(1);
+			}
+			memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
 
-				memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
+			pthread_rwlock_unlock(&lock);//unblocks write and reads
 
-				free(buffdata);
+			free(buffdata);
 
-				for( j = 0; j < 10; j++){
-					printf("[%d] message: %s\n", j, clipboard_content[j]);
-				}
+			pthread_rwlock_wrlock(&lock);//blocks write
+			for( j = 0; j < 10; j++){
+				if(clipboard_content[j]!=NULL)
+					printf("updated [%d] message: %s\n", j, clipboard_content[j]);
+			}
+			pthread_rwlock_unlock(&lock);//unblocks write
 
-				update_broadcast(remotehead, message_size->region, client_fd);
+			update_broadcast(remotehead, message_size->region, client_fd);
 
-			 }else if(message_size->order == SHUTDOWN){
-			 	printf("fd: %d shutdown\n", client_fd);
-			 	break;
-			 }
+		 }else if(message_size->order == SHUTDOWN){
+		 	printf("\nfd: %d has shutdown\n", client_fd);
+		 	break;
 		 }
-		// if(endrtc){
-		// 	free(buffstruct);
-		// 	printf("Remote connection closed on fd: %d. Removed from remote connections list.\n", client_fd);
-		// 	endarc++;
-		// 	exit(0);
-		// }
+		 
+
 	}
 	free(buffstruct);
 	free(message_size);
@@ -379,10 +429,18 @@ void * remote_thread_code(void * fdi){
 	int * fd = fdi;
 	int client_fd=*fd;
 	char * buffstruct=malloc(100*sizeof(char));
+	if(buffstruct==NULL){
+		printf("Error! memory not allocated.");
+		exit(1);
+	}
 
 	int nbytes=1;
 	int count=0;
 	message *message_size=malloc(sizeof(message));
+	if(message_size==NULL){
+		printf("Error! memory not allocated.");
+		exit(1);
+	}
 
 	printf("remote thread live \n");
 	// Receive messages - 1st) size of message; 2nd) message to copy to clipboard
@@ -390,49 +448,54 @@ void * remote_thread_code(void * fdi){
 	
 	clipboard_send(client_fd);
 
-
-
-	while(1){
-		// signal(SIGINT, terminate_local_thread_code);
+	while(nbytes!=-1){
+		
 		nbytes = recv(client_fd, buffstruct, sizeof(message), 0);
-		if(nbytes!=-1){
-			//Build struct
-			memcpy(message_size, buffstruct, sizeof(message));
+		
+		//Build struct
+		memcpy(message_size, buffstruct, sizeof(message));
 
-			if(message_size->order == UPDATE){
+		if(message_size->order == UPDATE){
 
-				count = message_size->data_size;
+			count = message_size->data_size;
 
-				char* buffdata = malloc(message_size->data_size);
+			char* buffdata = malloc(message_size->data_size);
 
-				nbytes = recv(client_fd, buffdata, message_size->data_size, 0);
+			nbytes = recv(client_fd, buffdata, message_size->data_size, 0);
 
-				printf("\nCopy\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
+			printf("\nUpdate\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
 
-				//Write in dynamic array
-				clipboard_content[message_size->region] = malloc(message_size->data_size);
+			pthread_rwlock_rdlock(&lock);//blocks write and read
+			//Write in dynamic array
+			clipboard_content[message_size->region] = realloc(clipboard_content[message_size->region] , message_size->data_size);
+			if(clipboard_content[message_size->region]==NULL){
+				printf("Error! memory not allocated.");
+				exit(1);
+			}
 
-				memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
 
-				free(buffdata);
+			memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
 
-				for( j = 0; j < 10; j++){
-					printf("[%d] message: %s\n", j, clipboard_content[j]);
-				}
+			pthread_rwlock_unlock(&lock);//unblocks write and read
 
-				update_broadcast(remotehead, message_size->region, client_fd);
+			free(buffdata);
 
-			 }else if(message_size->order == SHUTDOWN){
-			 	printf("fd: %d shutdown\n", client_fd);
-			 	break;
-			 }
+			pthread_rwlock_wrlock(&lock);//blocks write
+
+			for( j = 0; j < 10; j++){
+				if(clipboard_content[j]!=NULL)
+					printf("updated [%d] message: %s\n", j, clipboard_content[j]);
+			}
+			pthread_rwlock_unlock(&lock);//unblocks write
+
+			update_broadcast(remotehead, message_size->region, client_fd);
+
+		 }else if(message_size->order == SHUTDOWN){
+		 	printf("fd: %d shutdown\n", client_fd);
+		 	break;
 		 }
-		// if(endrtc){
-		// 	free(buffstruct);
-		// 	printf("Remote connection closed on fd: %d. Removed from remote connections list.\n", client_fd);
-		// 	endarc++;
-		// 	exit(0);
-		// }
+		 
+
 	}
 	free(buffstruct);
 	free(message_size);
@@ -468,7 +531,7 @@ void * accept_local_connection(){
 	unlink(CLIPBOARD_SOCKET);
 	int err = bind(sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
 	if(err == -1) {
-		perror("bind unix");
+		perror("bind unix ");
 		exit(-1);
 	}
 
@@ -477,11 +540,15 @@ void * accept_local_connection(){
 	printf("Ready to accept local connections\n");
 
 	int* c_fd = malloc(sizeof(int));
-	int client_fd;
+	if(c_fd==NULL){
+		printf("Error! memory not allocated.");
+		exit(1);
+	}
+
+	int client_fd=-2;
 
 
-	while(1){
-		// signal(SIGINT, terminate_accept_local_connection);
+	while(client_fd!=-1){
 
 		// Accept
 		client_fd = accept(sock_fd, (struct sockaddr *)&client_addr, &size_addr);
@@ -492,30 +559,24 @@ void * accept_local_connection(){
 
 		pthread_create(&id_thread, NULL, local_thread_code, c_fd);
 
+		pthread_rwlock_rdlock(&lock);//blocks write and read
   		insertLinkedList(&localhead, id_thread, client_fd);
+  		pthread_rwlock_unlock(&lock);//unblocks write and read
 
-
-		printf("local connections list size: %d\n", lengthLinkedList(localhead));
-		printf("local connections list\n");
+		pthread_rwlock_wrlock(&lock);//blocks write
 		printLinkedList(localhead);
-
-
-		// if(endalc==lengthLinkedList(localhead)){
-		// 	free(c_fd);
-		// 	close(sock_fd);
-		// 	endmain++;
-		// 	exit(0);
-		// }
+		pthread_rwlock_unlock(&lock);//unblocks write
 
 	}
+
+	close(sock_fd);
+	free(c_fd);
 
 
 }
 
 
 void * accept_remote_connection(){
-
-
 
 	//Create internet socket
 
@@ -524,7 +585,6 @@ void * accept_remote_connection(){
   	struct sockaddr_in client_addr;
   	socklen_t size_addr;
 
-  	char buff[100];
   	int nbytes;
 
   	int gateway_inet_sock_fd= socket(AF_INET, SOCK_STREAM, 0);
@@ -537,6 +597,10 @@ void * accept_remote_connection(){
     	exit(-1);
   	}
   	char * buffer=malloc(1024*sizeof(char));
+  	if(buffer==NULL){
+		printf("Error! memory not allocated.");
+		exit(1);
+	}
 
   	//Fill socket that is the gateway
   	gateway_local_addr.sin_family = AF_INET;
@@ -548,6 +612,7 @@ void * accept_remote_connection(){
 
 
   	//Change the gateway port if the default one is taken
+
   	while(bind(gateway_inet_sock_fd, (struct sockaddr *)&gateway_local_addr, sizeof(gateway_local_addr))==-1){
   		gateway_port++;
   		gateway_local_addr.sin_port= htons(gateway_port);
@@ -561,17 +626,29 @@ void * accept_remote_connection(){
   	printf("Ready to accept remote clipboard connections\n");
 
   	int* c_fd = malloc(sizeof(int));
-	int gateway_client_fd;
+  	if(c_fd==NULL){
+		printf("Error! memory not allocated.");
+		exit(1);
+	}
+	int gateway_client_fd=-2;
 	int client_fd;
+	int inet_sock_fd;
+	char * port;
+	int local_tcp_port;
 	nbytes=1;
+	port = malloc(10*sizeof(char));
+	if(port==NULL){
+		printf("Error! memory not allocated.");
+		exit(1);
+	}
 
-  	while(1){
-  		// signal(SIGINT, terminate_accept_remote_connection);
+  	while(gateway_client_fd!=-1){
+
     	gateway_client_fd=accept(gateway_inet_sock_fd, (struct sockaddr *) & client_addr, &size_addr);
 
     	printf("Accepted one connection from remote clipboard\n");
 
-    	int inet_sock_fd= socket(AF_INET, SOCK_STREAM, 0);
+    	inet_sock_fd= socket(AF_INET, SOCK_STREAM, 0);
   		if (setsockopt(inet_sock_fd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0){
     		printf("setsockopt(SO_REUSEADDR) failed");
   		}
@@ -581,9 +658,9 @@ void * accept_remote_connection(){
     		exit(-1);
   		}
 
-  		char * buffer=malloc(1024*sizeof(char));
+  		
+  		local_tcp_port=gateway_port;
 
-  		int local_tcp_port=GATEWAY_PORT;
   		conn_local_addr.sin_family = AF_INET;
   		conn_local_addr.sin_port= htons(local_tcp_port);
   		conn_local_addr.sin_addr.s_addr= INADDR_ANY;
@@ -594,28 +671,9 @@ void * accept_remote_connection(){
   		};
 
 
-  		close(inet_sock_fd);
-
-  		inet_sock_fd= socket(AF_INET, SOCK_STREAM, 0);
-  		if (setsockopt(inet_sock_fd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0){
-    		printf("setsockopt(SO_REUSEADDR) failed");
-  		}
-
-  		if (inet_sock_fd == -1){
-    		perror("socket: ");
-    		exit(-1);
-  		}
-
-  		if(bind(inet_sock_fd, (struct sockaddr *)&conn_local_addr, sizeof(conn_local_addr))==-1){
-  			perror("bind: ");
-  			exit(-1);
-  		}
 
   		listen(inet_sock_fd, 5);
   		//Sending port to new connection
-
-  		char * port = malloc(10*sizeof(char));
-
   		sprintf(port, "%d", local_tcp_port);
 
     	nbytes = send(gateway_client_fd, port, 10*sizeof(char), 0);
@@ -625,19 +683,16 @@ void * accept_remote_connection(){
 
 		nbytes=1;
 
-		nbytes=recv(gateway_client_fd, buffer, sizeof(char)*100, 0);
-		if(nbytes=0){
-			break;
-		}
+		nbytes=recv(gateway_client_fd, buffer, sizeof(char)*20, 0);
 
-		if(strcmp(buffer, "port received")!=0){
+		if(strcmp(buffer, "received")!=0){
 			printf("port was not received by remote clipboard\n");
-			exit(-1);
+			exit(1);
 		}
 
 		client_fd= accept(inet_sock_fd, (struct sockaddr *) &client_addr, &size_addr);
 		if(client_fd==-1){
-			perror("accept: ");
+			perror("accept ");
 			exit(-1);
 		}
     	//Call new thread
@@ -645,25 +700,22 @@ void * accept_remote_connection(){
 
 		pthread_create(&id_thread, NULL, remote_thread_code, c_fd);
 
+		pthread_rwlock_rdlock(&lock);//blocks write and read
   		insertLinkedList(&remotehead, id_thread, client_fd);
+  		pthread_rwlock_unlock(&lock);//unblocks write and read
 
-
-		printf("remote connections list size: %d\n", lengthLinkedList(remotehead));
-		printf("remote connections list:\n");
+		pthread_rwlock_wrlock(&lock);//blocks write
 		printLinkedList(remotehead);
+		pthread_rwlock_unlock(&lock);//unblocks write
 
-
-		// if(endarc==lengthLinkedList(remotehead)){
-		// 	close(gateway_inet_sock_fd);
-		// 	close(inet_sock_fd);
-		// 	close(gateway_client_fd);
-		// 	free(port);
-		// 	free(buffer);
-		// 	printf("no longer accepting local connections\n");
-		// 	endmain++;
-		// 	exit(0);
-		// }
 	}
+
+	close(gateway_inet_sock_fd);
+	free(buffer);
+	free(c_fd);
+	close(gateway_client_fd);
+	close(inet_sock_fd);
+	free(port);
 
 
 }
@@ -677,20 +729,22 @@ int main(int argc, char *argv[]){
 
 	int remote_fd = -1;
 	int gateway_remote_fd=-1;
-	
-
-
-	clipboard_content = malloc(10*sizeof(char*));
 	int j=0;
+
+	pthread_rwlock_rdlock(&lock);//blocks write and read
+	clipboard_content = malloc(10*sizeof(char*));
+	if(clipboard_content==NULL){
+		printf("Error! memory not allocated.");
+		exit(1);
+	}
 
 	for(j=0; j<10; j++){
 		clipboard_content[j]=NULL;
 	}
+	pthread_rwlock_unlock(&lock);//unblocks write and read
 
 
-	pthread_create(&id_thread, NULL, accept_local_connection, NULL);
-
-	pthread_create(&id_thread, NULL, accept_remote_connection, NULL);
+	
 
 
 	if(argc > 1){
@@ -721,18 +775,32 @@ int main(int argc, char *argv[]){
 			}
 
 			char * port = malloc(10*sizeof(char));
+			if(port==NULL){
+				printf("Error! memory not allocated.");
+				exit(1);
+			}
 
 			int nbytes=1;
 
 			nbytes=recv(gateway_remote_fd, port, 10*sizeof(char), 0);
 
+			if(nbytes==-1){
+				perror("recv: ");
+				exit(1);
+			}
+
 			int remote_port=atoi(port);
 
-			char buffer[100];
-			sprintf(buffer, "port received");
+			char buffer[20];
+			buffer[0]='\0';
+			sprintf(buffer, "received");
 			nbytes=1;
 
-	    	nbytes = send(gateway_remote_fd, buffer, sizeof(char)*100, 0);
+	    	nbytes = send(gateway_remote_fd, buffer, sizeof(char)*20, 0);
+	    	if(nbytes==-1){
+				perror("send: ");
+				exit(1);
+			}
 
 			close(gateway_remote_fd);
 
@@ -765,26 +833,38 @@ int main(int argc, char *argv[]){
 			clipboard_recv(remote_fd);
 
 			int * c_fd=malloc(sizeof(int));
+			if(c_fd==NULL){
+				printf("Error! memory not allocated.");
+				exit(1);
+			}
+
 			*c_fd=remote_fd;
 
 			pthread_create(&id_thread, NULL, connected_thread_code, c_fd);
 
+			pthread_rwlock_rdlock(&lock);//blocks write and read
   			insertLinkedList(&remotehead, 0, remote_fd);
+  			pthread_rwlock_unlock(&lock);//unblocks write and read
 
-
-			printf("remote connections list size: %d\n", lengthLinkedList(remotehead));
-			printf("remote connections list:\n");
+			pthread_rwlock_wrlock(&lock);//blocks write
 			printLinkedList(remotehead);
+			pthread_rwlock_unlock(&lock);//unblocks write
 
 
 			
-
+			pthread_rwlock_wrlock(&lock);//blocks write
 			for( j = 0; j < 10; j++){
-				printf("[%d] message: %s\n", j, clipboard_content[j]);
+				if(clipboard_content[j]!=NULL)
+					printf("updated [%d] message: %s\n", j, clipboard_content[j]);
 			}
+			pthread_rwlock_unlock(&lock);//unblocks write
 
 		}
 	}
+
+	pthread_create(&id_thread, NULL, accept_local_connection, NULL);
+
+	pthread_create(&id_thread, NULL, accept_remote_connection, NULL);
 
 
 
@@ -798,11 +878,33 @@ int main(int argc, char *argv[]){
 			freeList(&remotehead);
 			freeList(&localhead);
 
+			pthread_rwlock_rdlock(&lock);//blocks write and read
+
+
 			for(j=0; j<10; j++){
 				free(clipboard_content[j]);
 			}
 
+			pthread_rwlock_unlock(&lock);//unblocks write and write
+
+
 			exit(0);
+		}else if(strcmp(buffer, "print clipboard\n")==0){
+			pthread_rwlock_wrlock(&lock);//blocks write
+			for( j = 0; j < 10; j++){
+				if(clipboard_content[j]!=NULL){
+					printf("\nClipboard:\n");
+					printf("region [%d] message: %s\n", j, clipboard_content[j]);
+				}
+			}
+			pthread_rwlock_unlock(&lock);//unblocks write
+		}else if(strcmp(buffer, "print lists\n")==0){
+			printf("\nApps connected:\n");
+			pthread_rwlock_wrlock(&lock);//blocks write
+			printLinkedList(localhead);
+			printf("\nClipboards connected:\n");
+			printLinkedList(remotehead);
+			pthread_rwlock_unlock(&lock);//unblocks write
 		}
 	}
 

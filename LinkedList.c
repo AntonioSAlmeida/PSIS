@@ -58,7 +58,7 @@ void printLinkedList(LinkedList * first)
   LinkedList * aux = first;
   while(aux!=NULL){
     //printf("thread: %lu\n", aux->id);
-    printf("fd: %d\n", aux->fd);
+    printf("\nfd: %d\n", aux->fd);
     aux=aux->next;  
   }
 }
