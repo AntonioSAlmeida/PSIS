@@ -30,20 +30,40 @@ int main(){
 	//Create socket
 	sock_fd=clipboard_connect(server_addr);
 
-	
-	char * m=malloc(1000*sizeof(char));
-	void * buff=malloc(1000*sizeof(char));
+	//while(1){
+	//	printf("%s\n", "Enter your message");
+	//}
 
-	strcpy(m, "Message in a bottle");
-	clipboard_copy(sock_fd, 8, m, (strlen(m)+1)*sizeof(char));
-	
-    nbytes=0;
-	
+	char* m = malloc(100*sizeof(char));
+	char* region = malloc(100*sizeof(char));
+	int reg = 0;
+	void* buff = malloc(100*sizeof(char));
+
 	//Send to clipboard something
-	while(nbytes!=-1){
-		nbytes=clipboard_paste(sock_fd, 6, (char *)buff, MAXSIZE);
-		sleep(2);
-	}
+	printf("What do you want to copy to the clipboard?\n-> ");
+	fgets(m, 100*sizeof(char), stdin);
+	printf("To what region do you want to copy?\n-> ");
+	fgets(region, 100*sizeof(char), stdin);
+	reg = atoi(region);
+	clipboard_copy(sock_fd, reg, m, (strlen(m)+1)*sizeof(char));
+
+    nbytes=0;
+	nbytes = clipboard_paste(sock_fd, 3, (char *)buff, 5);
+	printf("[PASTED] %s\n", (char*)buff);
+
+	//wait until position 3 changes
+	printf("waiting\n");
+	clipboard_wait(sock_fd, 3, buff, 5);
+
+	printf("WAITED ALL THIS TIME FOR THIS!?!?\n->%s\n", (char*)buff);
+
+	// while(nbytes!=-1){
+	// 	printf("From what region do you want to paste?\n-> ");
+	// 	fgets(region, 100*sizeof(char), stdin);
+	// 	reg = atoi(region);
+	// 	nbytes = clipboard_paste(sock_fd, reg, (char *)buff, 5);
+	// 	sleep(2);
+	// }
 
 	close(sock_fd);
 	free(m);

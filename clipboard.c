@@ -17,10 +17,20 @@ pthread_t id_thread;
 LinkedList * localhead = NULL;
 LinkedList * remotehead = NULL;
 
-pthread_rwlock_t lock;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
+//Conditional variables for the wait function. One for each region
+pthread_cond_t wait_reg_0 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t wait_reg_1 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t wait_reg_2 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t wait_reg_3 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t wait_reg_4 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t wait_reg_5 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t wait_reg_6 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t wait_reg_7 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t wait_reg_8 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t wait_reg_9 = PTHREAD_COND_INITIALIZER;
 
-pthread_rwlock_t lock=PTHREAD_RWLOCK_INITIALIZER;
 
 
 int clipboard_recv(int fd){
@@ -31,13 +41,13 @@ int clipboard_recv(int fd){
 
 	message	warning;
 	char* warning_msg = (char*)malloc(sizeof(message));
-	if(warning_msg==NULL)                     
+	if(warning_msg==NULL)
     {
         printf("Error! memory not allocated.");
         exit(1);
     }
 
-	pthread_rwlock_rdlock(&lock);//blocks read and write
+	pthread_mutex_lock(&lock);//blocks read and write
 
 	for(i = 0; i < 10; i++){
 
@@ -52,7 +62,7 @@ int clipboard_recv(int fd){
 		count = warning.data_size;
 		if(count>0){
 			char* buffdata = malloc(warning.data_size);
-			if(buffdata==NULL)                     
+			if(buffdata==NULL)
     		{
         		printf("Error! memory not allocated.");
         		exit(1);
@@ -65,14 +75,14 @@ int clipboard_recv(int fd){
 			}
 			//Write in dynamic array
 			if(warning.data_size>0){
-			
+
 				clipboard_content[i] = malloc(warning.data_size);
 				if(buffdata==NULL){
         			printf("Error! memory not allocated.");
         			exit(1);
     			}
 				memcpy(clipboard_content[i], buffdata, warning.data_size);
-				
+
 			}
 
 
@@ -80,7 +90,7 @@ int clipboard_recv(int fd){
 		}
 
 	}
-	pthread_rwlock_unlock(&lock);//unlocks
+	pthread_mutex_unlock(&lock);//unlocks
 
 	free(warning_msg);
 
@@ -102,16 +112,16 @@ int clipboard_send(int fd){
      	exit(1);
     }
 
-	pthread_rwlock_wrlock(&lock);//blocks write
+	pthread_mutex_lock(&lock);//blocks write
 	for(i = 0; i < 10; i++){
 		warning.order = UPDATE;
 		warning.region = i;
 		warning.data_size=0;
 		if(clipboard_content[i]!=NULL)
 			warning.data_size = (strlen(clipboard_content[i])+1)*sizeof(char);
-		
+
 		memcpy(warning_msg, &warning, sizeof(warning));
-		
+
 		send(fd, warning_msg, sizeof(message), 0);
 		if(nbytes==-1){
 			perror("Send: ");;
@@ -126,7 +136,7 @@ int clipboard_send(int fd){
 			}
 		}
 	}
-	pthread_rwlock_unlock(&lock);//unblocks
+	pthread_mutex_unlock(&lock);//unblocks
 
 	free(warning_msg);
 	return 0;
@@ -150,9 +160,9 @@ void clipboard_shutdown(LinkedList * remotehead){
 		warning.order = SHUTDOWN;
 		warning.region = 0;
 		warning.data_size=0;
-	
+
 		memcpy(warning_msg, &warning, sizeof(warning));
-		
+
 		send(aux->fd, warning_msg, sizeof(message), 0);
 		if(nbytes==-1){
 			perror("Send: ");
@@ -161,8 +171,8 @@ void clipboard_shutdown(LinkedList * remotehead){
 		printf("\nsent shutdown\n");
 		aux=aux->next;
 	}
-	
-	
+
+
 	free(warning_msg);
 	return;
 
@@ -184,10 +194,10 @@ int update_broadcast(LinkedList * remote_connections, int region, int fd_receive
 	LinkedList * aux = remote_connections;
 
 
-	pthread_rwlock_wrlock(&lock);//blocks write
+	pthread_mutex_lock(&lock);//blocks write
 
 	warning.data_size = (strlen(clipboard_content[region])+1)*sizeof(char);
-	
+
 	memcpy(warning_msg, &warning, sizeof(message));
 
 
@@ -209,7 +219,7 @@ int update_broadcast(LinkedList * remote_connections, int region, int fd_receive
 		}
 		aux=aux->next;
 	}
-	pthread_rwlock_unlock(&lock);//unblocks write
+	pthread_mutex_unlock(&lock);//unblocks write
 
 	// free(region_copy);
 	free(warning_msg);
@@ -241,7 +251,7 @@ void * local_thread_code(void * fdi){
 
 		// Receive messages - 1st) size of message; 2nd) message to coppdate_broadcast(remotehead, message_size->y to clipboard
 		while(nbytes!=-1){
-			
+
 			nbytes = recv(client_fd, buffstruct, sizeof(message), 0);
 
 			if(nbytes==0){
@@ -253,7 +263,7 @@ void * local_thread_code(void * fdi){
 				//Build struct
 				memcpy(message_size, buffstruct, sizeof(message));
 
-				if(message_size->order==COPY){
+				if(message_size->order == COPY){
 
 					count=message_size->data_size;
 
@@ -269,20 +279,53 @@ void * local_thread_code(void * fdi){
 					}
 
 					printf("\nCopy\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
-					
+
 
 					int bytes=0; //just so that realloc doesn't give a warning
 					//Write in dynamic array
-					pthread_rwlock_rdlock(&lock);//blocks write and read
-				
+					pthread_mutex_lock(&lock);//blocks write and read
+
 					clipboard_content[message_size->region]=realloc(clipboard_content[message_size->region], message_size->data_size*sizeof(char));
 					if(clipboard_content[message_size->region]==NULL){
 						printf("Error! memory not allocated.");
 						exit(1);
 					}
-					
+
 					memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
-					pthread_rwlock_unlock(&lock);//unblocks write and read
+					pthread_mutex_unlock(&lock);//unblocks write and read
+					printf("\tbroadcasting changes to region %d\n", message_size->region);
+					switch (message_size->region) {
+						case 0:
+							pthread_cond_broadcast(&wait_reg_0);
+							break;
+						case 1:
+							pthread_cond_broadcast(&wait_reg_1);
+							break;
+						case 2:
+							pthread_cond_broadcast(&wait_reg_2);
+							break;
+						case 3:
+							pthread_cond_signal(&wait_reg_3);
+							break;
+						case 4:
+							pthread_cond_broadcast(&wait_reg_4);
+							break;
+						case 5:
+							pthread_cond_broadcast(&wait_reg_5);
+							break;
+						case 6:
+							pthread_cond_broadcast(&wait_reg_6);
+							break;
+						case 7:
+							pthread_cond_broadcast(&wait_reg_7);
+							break;
+						case 8:
+							pthread_cond_broadcast(&wait_reg_8);
+							break;
+						case 9:
+							pthread_cond_broadcast(&wait_reg_9);
+							break;
+					}
 
 					free(buffdata);
 
@@ -292,15 +335,20 @@ void * local_thread_code(void * fdi){
 					}
 
 
-				}else if(message_size->order==PASTE){
+				}else if(message_size->order == PASTE){
 
-					printf("\nPaste\nmessage:%s\n",clipboard_content[message_size->region]);
+					pthread_mutex_lock(&lock);//blocks write
+					//printf("\nPaste\nmessage:%s\n",clipboard_content[message_size->region]);
 
 					//Sending message length
-
+					if (clipboard_content[message_size->region]!=NULL){
+						message_size->data_size = strlen(clipboard_content[message_size->region])+1;
+					}else{
+						message_size->data_size = sizeof(char);
+					}
 					memcpy(buffstruct, message_size, sizeof(message));
 
-					nbytes2=send(client_fd, buffstruct, sizeof(message), 0);
+					nbytes2 = send(client_fd, buffstruct, sizeof(message), 0);
 					if(nbytes2==-1){
 						perror("Send: ");
      					exit(1);
@@ -308,14 +356,11 @@ void * local_thread_code(void * fdi){
 
 
 					//Sending message
-
-					buffdata=realloc(buffdata, message_size->data_size);
+					buffdata = realloc(buffdata, message_size->data_size);
 					if(buffdata==NULL){
 						printf("Error! memory not allocated.");
      					exit(1);
 					}
-
-					pthread_rwlock_wrlock(&lock);//blocks write
 
 					if (clipboard_content[message_size->region]!=NULL){
 						memcpy(buffdata, clipboard_content[message_size->region], message_size->data_size);
@@ -323,7 +368,7 @@ void * local_thread_code(void * fdi){
 						memcpy(buffdata, "\0", sizeof(char));
 					}
 
-					pthread_rwlock_unlock(&lock);//unblocks write
+					pthread_mutex_unlock(&lock);//unblocks write
 
 					nbytes2=send(client_fd, buffdata, message_size->data_size, 0);
 					if(nbytes2==-1){
@@ -331,11 +376,82 @@ void * local_thread_code(void * fdi){
      					exit(1);
 					}
 
-					
+				}else if(message_size->order == WAIT){
 
+					pthread_mutex_lock(&lock);//blocks write
+
+					//Waiting for conditional variable
+					switch(message_size->region){
+						case 0:
+							pthread_cond_wait(&wait_reg_0, &lock);
+							break;
+						case 1:
+							pthread_cond_wait(&wait_reg_1, &lock);
+							break;
+						case 2:
+							pthread_cond_wait(&wait_reg_2, &lock);
+							break;
+						case 3:
+							pthread_cond_wait(&wait_reg_3, &lock);
+							break;
+						case 4:
+							pthread_cond_wait(&wait_reg_4, &lock);
+							break;
+						case 5:
+							pthread_cond_wait(&wait_reg_5, &lock);
+							break;
+						case 6:
+							pthread_cond_wait(&wait_reg_6, &lock);
+							break;
+						case 7:
+							pthread_cond_wait(&wait_reg_7, &lock);
+							break;
+						case 8:
+							pthread_cond_wait(&wait_reg_8, &lock);
+							break;
+						case 9:
+							pthread_cond_wait(&wait_reg_9, &lock);
+							break;
+					}
+
+
+
+					//Sending message length
+					if (clipboard_content[message_size->region]!=NULL){
+						message_size->data_size = strlen(clipboard_content[message_size->region])+1;
+					}else{
+						message_size->data_size = sizeof(char);
+					}
+					memcpy(buffstruct, message_size, sizeof(message));
+
+					nbytes2 = send(client_fd, buffstruct, sizeof(message), 0);
+					if(nbytes2==-1){
+						perror("Send: ");
+     					exit(1);
+					}
+
+					//Sending message
+					buffdata = realloc(buffdata, message_size->data_size);
+					if(buffdata==NULL){
+						printf("Error! memory not allocated.");
+     					exit(1);
+					}
+
+					if (clipboard_content[message_size->region]!=NULL){
+						memcpy(buffdata, clipboard_content[message_size->region], strlen(clipboard_content[message_size->region])+1);
+					}else{
+						memcpy(buffdata, "\0", sizeof(char));
+					}
+
+					pthread_mutex_unlock(&lock);//unblocks write
+
+					nbytes2 = send(client_fd, buffdata, message_size->data_size, 0);
+					if(nbytes2 == -1){
+						perror("Send: ");
+     					exit(1);
+					}
 
 				}
-
 			}
 		}
 		free(buffdata);
@@ -370,10 +486,10 @@ void * connected_thread_code(void * fdi){
 	// Receive messages - 1st) size of message; 2nd) message to copy to clipboard
 
 	while(nbytes!=-1){
-		
+
 		nbytes = recv(client_fd, buffstruct, sizeof(message), 0);
-		
-		
+
+
 		//Build struct
 		memcpy(message_size, buffstruct, sizeof(message));
 
@@ -391,7 +507,7 @@ void * connected_thread_code(void * fdi){
 
 			printf("\nUpdate\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
 
-			pthread_rwlock_rdlock(&lock);//blocks write and read
+			pthread_mutex_lock(&lock);//blocks write and read
 			//Write in dynamic array
 			clipboard_content[message_size->region] = realloc(clipboard_content[message_size->region], message_size->data_size);
 			if(clipboard_content[message_size->region]==NULL){
@@ -400,16 +516,13 @@ void * connected_thread_code(void * fdi){
 			}
 			memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
 
-			pthread_rwlock_unlock(&lock);//unblocks write and reads
-
 			free(buffdata);
 
-			pthread_rwlock_wrlock(&lock);//blocks write
 			for( j = 0; j < 10; j++){
 				if(clipboard_content[j]!=NULL)
 					printf("updated [%d] message: %s\n", j, clipboard_content[j]);
 			}
-			pthread_rwlock_unlock(&lock);//unblocks write
+			pthread_mutex_unlock(&lock);//unblocks write
 
 			update_broadcast(remotehead, message_size->region, client_fd);
 
@@ -417,7 +530,7 @@ void * connected_thread_code(void * fdi){
 		 	printf("\nfd: %d has shutdown\n", client_fd);
 		 	break;
 		 }
-		 
+
 
 	}
 	free(buffstruct);
@@ -453,13 +566,13 @@ void * remote_thread_code(void * fdi){
 	printf("remote thread live \n");
 	// Receive messages - 1st) size of message; 2nd) message to copy to clipboard
 
-	
+
 	clipboard_send(client_fd);
 
 	while(nbytes!=-1){
-		
+
 		nbytes = recv(client_fd, buffstruct, sizeof(message), 0);
-		
+
 		//Build struct
 		memcpy(message_size, buffstruct, sizeof(message));
 
@@ -473,7 +586,7 @@ void * remote_thread_code(void * fdi){
 
 			printf("\nUpdate\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
 
-			pthread_rwlock_rdlock(&lock);//blocks write and read
+			pthread_mutex_lock(&lock);//blocks write and read
 			//Write in dynamic array
 			clipboard_content[message_size->region] = realloc(clipboard_content[message_size->region] , message_size->data_size);
 			if(clipboard_content[message_size->region]==NULL){
@@ -483,7 +596,7 @@ void * remote_thread_code(void * fdi){
 
 
 			memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
-	
+
 
 			free(buffdata);
 
@@ -492,7 +605,7 @@ void * remote_thread_code(void * fdi){
 				if(clipboard_content[j]!=NULL)
 					printf("updated [%d] message: %s\n", j, clipboard_content[j]);
 			}
-			pthread_rwlock_unlock(&lock);//unblocks write and read
+			pthread_mutex_unlock(&lock);//unblocks write and read
 
 			update_broadcast(remotehead, message_size->region, client_fd);
 
@@ -500,7 +613,7 @@ void * remote_thread_code(void * fdi){
 		 	printf("fd: %d shutdown\n", client_fd);
 		 	break;
 		 }
-		 
+
 
 	}
 	free(buffstruct);
@@ -565,11 +678,11 @@ void * accept_local_connection(){
 
 		pthread_create(&id_thread, NULL, local_thread_code, c_fd);
 
-		pthread_rwlock_rdlock(&lock);//blocks write and read
+		pthread_mutex_lock(&lock);//blocks write and read
   		insertLinkedList(&localhead, id_thread, client_fd);
 
 		printLinkedList(localhead);
-		pthread_rwlock_unlock(&lock);//unblocks write
+		pthread_mutex_unlock(&lock);//unblocks write
 
 	}
 
@@ -662,7 +775,7 @@ void * accept_remote_connection(){
     		exit(-1);
   		}
 
-  		
+
   		local_tcp_port=gateway_port;
 
   		conn_local_addr.sin_family = AF_INET;
@@ -704,11 +817,11 @@ void * accept_remote_connection(){
 
 		pthread_create(&id_thread, NULL, remote_thread_code, c_fd);
 
-		pthread_rwlock_rdlock(&lock);//blocks write and read
+		pthread_mutex_lock(&lock);//blocks write and read
   		insertLinkedList(&remotehead, id_thread, client_fd);
- 
+
 		printLinkedList(remotehead);
-		pthread_rwlock_unlock(&lock);//unblocks write
+		pthread_mutex_unlock(&lock);//unblocks write
 
 	}
 
@@ -728,21 +841,31 @@ int gateway_remote_fd=-1;
 void sig_handler(int dummy)
 {
 	printf("\n");
+	pthread_cond_destroy(&wait_reg_0);
+	pthread_cond_destroy(&wait_reg_1);
+	pthread_cond_destroy(&wait_reg_2);
+	pthread_cond_destroy(&wait_reg_3);
+	pthread_cond_destroy(&wait_reg_4);
+	pthread_cond_destroy(&wait_reg_5);
+	pthread_cond_destroy(&wait_reg_6);
+	pthread_cond_destroy(&wait_reg_7);
+	pthread_cond_destroy(&wait_reg_8);
+	pthread_cond_destroy(&wait_reg_9);
 	clipboard_shutdown(remotehead);
 	close(gateway_remote_fd);
 	freeList(&remotehead);
 	freeList(&localhead);
 
-	pthread_rwlock_rdlock(&lock);//blocks write and read
+	pthread_mutex_lock(&lock);//blocks write and read
 	int j=0;
 	for(j=0; j<10; j++){
 		free(clipboard_content[j]);
 	}
 
-	pthread_rwlock_unlock(&lock);//unblocks write and write
+	pthread_mutex_unlock(&lock);//unblocks write and write
 	exit(0);
 }
-			
+
 
 int main(int argc, char *argv[]){
 
@@ -750,10 +873,10 @@ int main(int argc, char *argv[]){
 	signal(SIGINT, sig_handler);
 
 	int remote_fd = -1;
-	
+
 	int j=0;
 
-	pthread_rwlock_rdlock(&lock);//blocks write and read
+	pthread_mutex_lock(&lock);//blocks write and read
 	clipboard_content = malloc(10*sizeof(char*));
 	if(clipboard_content==NULL){
 		printf("Error! memory not allocated.");
@@ -763,10 +886,10 @@ int main(int argc, char *argv[]){
 	for(j=0; j<10; j++){
 		clipboard_content[j]=NULL;
 	}
-	pthread_rwlock_unlock(&lock);//unblocks write and read
+	pthread_mutex_unlock(&lock);//unblocks write and read
 
 
-	
+
 
 
 	if(argc > 1){
@@ -864,20 +987,16 @@ int main(int argc, char *argv[]){
 
 			pthread_create(&id_thread, NULL, connected_thread_code, c_fd);
 
-			pthread_rwlock_rdlock(&lock);//blocks write and read
+			pthread_mutex_lock(&lock);//blocks write and read
   			insertLinkedList(&remotehead, 0, remote_fd);
 
 			printLinkedList(remotehead);
-			pthread_rwlock_unlock(&lock);//unblocks write
 
-
-			
-			pthread_rwlock_wrlock(&lock);//blocks write
 			for( j = 0; j < 10; j++){
 				if(clipboard_content[j]!=NULL)
 					printf("updated [%d] message: %s\n", j, clipboard_content[j]);
 			}
-			pthread_rwlock_unlock(&lock);//unblocks write
+			pthread_mutex_unlock(&lock);//unblocks write
 
 		}
 	}
@@ -893,39 +1012,49 @@ int main(int argc, char *argv[]){
 	while(1){
 		fgets(buffer, 100*sizeof(char), stdin);
 		if(strcmp(buffer, "exit\n")==0){
+			pthread_cond_destroy(&wait_reg_0);
+			pthread_cond_destroy(&wait_reg_1);
+			pthread_cond_destroy(&wait_reg_2);
+			pthread_cond_destroy(&wait_reg_3);
+			pthread_cond_destroy(&wait_reg_4);
+			pthread_cond_destroy(&wait_reg_5);
+			pthread_cond_destroy(&wait_reg_6);
+			pthread_cond_destroy(&wait_reg_7);
+			pthread_cond_destroy(&wait_reg_8);
+			pthread_cond_destroy(&wait_reg_9);
 			clipboard_shutdown(remotehead);
 			close(gateway_remote_fd);
 			freeList(&remotehead);
 			freeList(&localhead);
 
-			pthread_rwlock_rdlock(&lock);//blocks write and read
+			pthread_mutex_lock(&lock);//blocks write and read
 
 
 			for(j=0; j<10; j++){
 				free(clipboard_content[j]);
 			}
 
-			pthread_rwlock_unlock(&lock);//unblocks write and write
+			pthread_mutex_unlock(&lock);//unblocks write and write
 
 
 			exit(0);
 		}else if(strcmp(buffer, "print clipboard\n")==0){
-			pthread_rwlock_wrlock(&lock);//blocks write
+			pthread_mutex_lock(&lock);//blocks write
 			printf("\nClipboard:\n");
 			for( j = 0; j < 10; j++){
 				if(clipboard_content[j]!=NULL){
-					
+
 					printf("region [%d] message: %s\n", j, clipboard_content[j]);
 				}
 			}
-			pthread_rwlock_unlock(&lock);//unblocks write
+			pthread_mutex_unlock(&lock);//unblocks write
 		}else if(strcmp(buffer, "print lists\n")==0){
 			printf("\nApps connected:\n");
-			pthread_rwlock_wrlock(&lock);//blocks write
+			pthread_mutex_lock(&lock);//blocks write
 			printLinkedList(localhead);
 			printf("\nClipboards connected:\n");
 			printLinkedList(remotehead);
-			pthread_rwlock_unlock(&lock);//unblocks write
+			pthread_mutex_unlock(&lock);//unblocks write
 		}
 	}
 

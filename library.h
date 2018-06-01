@@ -10,8 +10,9 @@
 
 #define COPY 0
 #define PASTE 1
-#define UPDATE 2
-#define SHUTDOWN 3
+#define WAIT 2
+#define UPDATE 3
+#define SHUTDOWN 4
 #define MAXSIZE 1024
 
 
