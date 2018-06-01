@@ -30,10 +30,7 @@ int main(){
 	//Create socket
 	sock_fd=clipboard_connect(server_addr);
 
-	//while(1){
-	//	printf("%s\n", "Enter your message");
-	//}
-
+	
 	char * m=malloc(1000*sizeof(char));
 	void * buff=malloc(1000*sizeof(char));
 
@@ -44,14 +41,9 @@ int main(){
 	
 	//Send to clipboard something
 	while(nbytes!=-1){
-		nbytes=clipboard_paste(sock_fd, 8, (char *)buff, MAXSIZE);
+		nbytes=clipboard_paste(sock_fd, 6, (char *)buff, MAXSIZE);
 		sleep(2);
 	}
-	//sleep(1);
-	//buff = malloc(MAXSIZE*sizeof(char));
-	//
-
-	//printf("%s\n", (char*)buff);
 
 	close(sock_fd);
 	free(m);

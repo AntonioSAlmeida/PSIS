@@ -158,7 +158,7 @@ void clipboard_shutdown(LinkedList * remotehead){
 			perror("Send: ");
      		exit(1);
 		}
-		printf("sent shutdown\n");
+		printf("\nsent shutdown\n");
 		aux=aux->next;
 	}
 	
@@ -231,11 +231,13 @@ void * local_thread_code(void * fdi){
 		int nbytes=1;
 		int nbytes2=0;
 		int count=0;
+		char * buffdata=NULL;
 		message *message_size=malloc(sizeof(message));
 		if(message_size==NULL){
        		printf("Error! memory not allocated.");
      		exit(1);
     	}
+
 
 		// Receive messages - 1st) size of message; 2nd) message to coppdate_broadcast(remotehead, message_size->y to clipboard
 		while(nbytes!=-1){
@@ -307,7 +309,7 @@ void * local_thread_code(void * fdi){
 
 					//Sending message
 
-					char * buffdata=malloc(sizeof(message_size->data_size));
+					buffdata=realloc(buffdata, message_size->data_size);
 					if(buffdata==NULL){
 						printf("Error! memory not allocated.");
      					exit(1);
@@ -315,7 +317,11 @@ void * local_thread_code(void * fdi){
 
 					pthread_rwlock_wrlock(&lock);//blocks write
 
-					memcpy(buffdata, clipboard_content[message_size->region], message_size->data_size);
+					if (clipboard_content[message_size->region]!=NULL){
+						memcpy(buffdata, clipboard_content[message_size->region], message_size->data_size);
+					}else{
+						memcpy(buffdata, "\0", sizeof(char));
+					}
 
 					pthread_rwlock_unlock(&lock);//unblocks write
 
@@ -325,13 +331,14 @@ void * local_thread_code(void * fdi){
      					exit(1);
 					}
 
-					free(buffdata);
+					
 
 
 				}
 
 			}
 		}
+		free(buffdata);
 		free(buffstruct);
 		free(message_size);
 		close(client_fd);
@@ -715,15 +722,35 @@ void * accept_remote_connection(){
 
 }
 
+int gateway_remote_fd=-1;
 
+
+void sig_handler(int dummy)
+{
+	printf("\n");
+	clipboard_shutdown(remotehead);
+	close(gateway_remote_fd);
+	freeList(&remotehead);
+	freeList(&localhead);
+
+	pthread_rwlock_rdlock(&lock);//blocks write and read
+	int j=0;
+	for(j=0; j<10; j++){
+		free(clipboard_content[j]);
+	}
+
+	pthread_rwlock_unlock(&lock);//unblocks write and write
+	exit(0);
+}
+			
 
 int main(int argc, char *argv[]){
 
 
-
+	signal(SIGINT, sig_handler);
 
 	int remote_fd = -1;
-	int gateway_remote_fd=-1;
+	
 	int j=0;
 
 	pthread_rwlock_rdlock(&lock);//blocks write and read
