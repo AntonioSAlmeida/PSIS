@@ -9,7 +9,7 @@
 
 #include "clipboard.h"
 
-/*Creates 16 threads that randomly write the user inputs into clipboard regions*/
+/*Creates 32 threads that randomly write the user inputs into clipboard regions*/
 int main(){
 
 	struct sockaddr_un server_addr;
@@ -43,8 +43,9 @@ int main(){
 	printf("Write something else to write to some regions\n->");
 	fgets(buff2, 100*sizeof(char), stdin);
 
-	//Creates 16 threads
+	//Creates 32 threads
 	int pid=fork();
+	fork();
 	fork();
 	fork();
 	fork();
