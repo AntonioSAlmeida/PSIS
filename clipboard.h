@@ -9,7 +9,7 @@
 
 #define INBOUND_FIFO "INBOUND_FIFO"
 #define OUTBOUND_FIFO "OUTBOUND_FIFO"
-#define CLIPBOARD_SOCKET "/tmp/unixsocket"
+#define CLIPBOARD_SOCKET "unixsocket"
 #define GATEWAY_PORT 8010
 
 #define COPY 0
@@ -17,7 +17,7 @@
 #define WAIT 2
 #define UPDATE 3
 #define SHUTDOWN 4
-#define MAXSIZE 1024
+
 
 
 int clipboard_connect(struct sockaddr_un socket_addr);

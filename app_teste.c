@@ -42,28 +42,25 @@ int main(){
 	fgets(m, 100*sizeof(char), stdin);
 	printf("Write something else to write to some regions\n->");
 	fgets(buff2, 100*sizeof(char), stdin);
-
-	//Creates 8 threads
-	int pid=fork();
-	fork();
-	fork();
-	
+	int i;
+	for(i=0;i<10;i++){
 	//Randomizes region for which to copy
-	srand(getpid());
-	reg = (rand() % 10);
+		srand(i);
+		reg = (rand() % 10);
 	//Threads with even PID's write a string, threads with odd PID's write another
-	if(getpid()%2==0)
-		clipboard_copy(sock_fd, reg, m, (strlen(m)+1)*sizeof(char));
-	else
-		clipboard_copy(sock_fd, reg, buff2, (strlen(buff2)+1)*sizeof(char));
-
-
-	if(getpid()==pid){
-		//wait until position 3 changes
-		printf("waiting\n");
-		clipboard_wait(sock_fd, 3, buff, 100);
-		printf("WAITED ALL THIS TIME FOR THIS!?!?\n->%s\n", (char*)buff);	
+		if(reg%2==0)
+			clipboard_copy(sock_fd, reg, m, (strlen(m)+1)*sizeof(char));
+		else
+			clipboard_copy(sock_fd, reg, buff2, (strlen(buff2)+1)*sizeof(char));
 	}
+
+
+
+	//wait until position 3 changes
+	printf("waiting\n");
+	clipboard_wait(sock_fd, 3, buff, 100);
+	printf("WAITED ALL THIS TIME FOR THIS!?!?\n->%s\n", (char*)buff);	
+	
 	close(sock_fd);
 	free(m);
 	free(buff);
