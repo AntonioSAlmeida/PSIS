@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <ctype.h>
 #include "LinkedList.h"
 #include "clipboard.h"
 #include "message.h"
@@ -44,8 +45,11 @@ int clipboard_connect(struct sockaddr_un server_addr){
  ********************************************************************************/
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
 
+	if(!isalpha(region)){
+		region=11;
+	}
 	if(region >= 10 || region<0){
-		perror("invalid region: ");
+		printf("invalid region\n");
 		return 0;
 	}
 
@@ -67,19 +71,11 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
 		return 0;
 	}
 
-	while(aux_count > 0){
-		sent = send(clipboard_id, buf, msg_struct.data_size, 0);
-		if(sent == -1){
-			perror("send copy: ");
-			return 0;
-		}
-
-		aux_count-=sent;
-	}
-
+	sent = send(clipboard_id, buf, msg_struct.data_size, 0);
+	
 	free(msg);
 
-	return count;
+	return sent;
 }
 
 /********************************************************************************
@@ -93,8 +89,12 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count){
  *
  ********************************************************************************/
 int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
+	if(!isalpha(region)){
+		region=11;
+	}
 
-	if(region >= 10){
+	if(region >= 10 || region <0){
+		printf("invalid region\n");
 		return 0;
 	}
 
@@ -102,13 +102,14 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 	msg_struct.order = PASTE;
 	msg_struct.region = region;
 	msg_struct.data_size = count;
+
 	char *bufstruct=malloc(sizeof(message));
 	int err_msg;
 	char *msg = malloc(sizeof(message));
 
-
+	
 	memcpy(msg, &msg_struct, sizeof(message));
-	err_msg = send(clipboard_id, msg, sizeof(msg), 0);
+	err_msg = send(clipboard_id, msg, sizeof(message), 0);
 	if(err_msg == -1){
 		perror("clipboard: ");
 		return 0;
@@ -124,15 +125,31 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
 	memcpy(&msg_struct, bufstruct, sizeof(message));
 
 
-	err_msg = recv(clipboard_id, buf, msg_struct.data_size, 0);
-	if(err_msg == -1){
-		perror("clipboard: ");
-		return 0;
+	//Write count bytes from the received message in buf, if size of message is larger or equal to count.
+	//Else, write the whole message.
+	
+	if(count > msg_struct.data_size){
+		err_msg = recv(clipboard_id, buf, msg_struct.data_size, 0);
+		if(err_msg == -1){
+			perror("clipboard: ");
+			return 0;
+		}
+
+		free(bufstruct);
+		free(msg);
+		return msg_struct.data_size;
+	}else{
+		err_msg = recv(clipboard_id, buf, count, 0);
+		if(err_msg == -1){
+			perror("clipboard: ");
+			return 0;
+		}
+
+		free(bufstruct);
+		free(msg);
+		return count;
 	}
 
-	free(bufstruct);
-	free(msg);
-	return strlen(buf)+1;
 }
 
 /********************************************************************************
@@ -147,7 +164,12 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count){
  ********************************************************************************/
 int clipboard_wait(int clipboard_id, int region, void *buf, size_t count){
 
-	if(region >= 10){
+	if(!isalpha(region)){
+		region=11;
+	}
+
+	if(region >= 10 || region <0){
+		printf("invalid region\n");
 		return 0;
 	}
 
@@ -162,7 +184,7 @@ int clipboard_wait(int clipboard_id, int region, void *buf, size_t count){
 
 
 	memcpy(msg, &msg_struct, sizeof(message));
-	err_msg = send(clipboard_id, msg, sizeof(msg), 0);
+	err_msg = send(clipboard_id, msg, sizeof(message), 0);
 	if(err_msg == -1){
 		perror("clipboard: ");
 		return 0;

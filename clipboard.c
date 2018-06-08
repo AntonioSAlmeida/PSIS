@@ -272,12 +272,9 @@ void * local_thread_code(void * fdi){
        					printf("Error! memory not allocated.");
      					exit(1);
     				}
+					
 
-					while(count>0){
-
-						nbytes = recv(client_fd, buffdata, message_size->data_size, 0);
-					 	count=count-nbytes;
-					}
+					nbytes = recv(client_fd, buffdata, message_size->data_size, 0);
 
 					printf("\nCopy\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
 
@@ -296,9 +293,11 @@ void * local_thread_code(void * fdi){
 					}
 
 					memcpy(clipboard_content[message_size->region], buffdata, message_size->data_size);
+					printf("%s\n", clipboard_content[message_size->region]);
 
 					pthread_mutex_unlock(&lock);//unblocks write and read
 					printf("\tchanges to region %d\n", message_size->region);
+					free(buffdata);
 					
 					switch (message_size->region) {
 						case 0:
@@ -333,7 +332,6 @@ void * local_thread_code(void * fdi){
 							break;
 					}
 
-					free(buffdata);
 
 					if(remotehead!=NULL){
 						printf("Broadcasting changes\n");
@@ -348,7 +346,7 @@ void * local_thread_code(void * fdi){
 
 					//Sending message length
 					if (clipboard_content[message_size->region]!=NULL){
-						message_size->data_size = strlen(clipboard_content[message_size->region])+1;
+						message_size->data_size=strlen(clipboard_content[message_size->region])+1;
 					}else{
 						message_size->data_size = sizeof(char);
 					}
@@ -381,6 +379,8 @@ void * local_thread_code(void * fdi){
 						perror("Send: ");
      					exit(1);
 					}
+
+					printf("\nPaste\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
 
 				}else if(message_size->order == WAIT){
 
@@ -456,7 +456,7 @@ void * local_thread_code(void * fdi){
 						perror("Send: ");
      					exit(1);
 					}
-
+					printf("\nWait\nsize:%d\nregion:%d\nmessage:%s\n", message_size->data_size, message_size->region, buffdata);
 				}
 			}
 		}
